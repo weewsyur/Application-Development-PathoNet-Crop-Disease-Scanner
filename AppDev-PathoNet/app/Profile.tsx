@@ -10,7 +10,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { auth } from "@/lib/firebase";
-import { signOut } from "firebase/auth";
+import { signOutUser } from "@/lib/authService";
 import { COLORS, SIZES } from "@/constants/theme";
 
 export default function ProfileScreen() {
@@ -27,7 +27,7 @@ export default function ProfileScreen() {
     }
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -36,8 +36,12 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             setLoading(true);
-            await signOut(auth);
-            router.replace("/(auth)/Welcome");
+            const result = await signOutUser();
+            if (result.success) {
+              router.replace("/(auth)/Welcome");
+            } else {
+              Alert.alert("Error", result.message || "Failed to sign out");
+            }
           } catch (error) {
             console.error("Sign out error:", error);
             Alert.alert("Error", "Failed to sign out");

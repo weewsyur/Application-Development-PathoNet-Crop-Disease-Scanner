@@ -5,15 +5,18 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "@/constants/theme";
+import { signOutUser } from "@/lib/authService";
 
 // ─── Profile Screen ───────────────────────────────────────────────────────────
 
 export default function Profile() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   // Placeholder user data — replace with real data from auth/context/API
   const [user] = useState({
@@ -22,6 +25,32 @@ export default function Profile() {
     joinDate: "April 2025",
     role: "Member",
   });
+
+  const handleSignOut = async () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Sign Out",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setLoading(true);
+            const result = await signOutUser();
+            if (result.success) {
+              router.replace("/(auth)/Welcome");
+            } else {
+              Alert.alert("Error", result.message || "Failed to sign out");
+            }
+          } catch (error) {
+            console.error("Sign out error:", error);
+            Alert.alert("Error", "Failed to sign out");
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <View style={styles.screen}>
@@ -82,10 +111,11 @@ export default function Profile() {
         <TouchableOpacity
           style={styles.signOutBtn}
           activeOpacity={0.82}
-          onPress={() => router.replace("/(auth)/SignUp")} // adjust route as needed
+          onPress={handleSignOut}
+          disabled={loading}
         >
           <Ionicons name="log-out-outline" size={18} color={C.white} />
-          <Text style={styles.signOutText}>Sign Out</Text>
+          <Text style={styles.signOutText}>{loading ? "Signing Out..." : "Sign Out"}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
