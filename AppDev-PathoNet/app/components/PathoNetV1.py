@@ -1,61 +1,8 @@
 """
-PathoNet CNN — Improvement Patch (v3.0)
-========================================
-Drop-in enhancements for plant_disease_cnn.py (backward compatible).
-
-What's new in v3.0 vs v2.0
-────────────────────────────
-  • MobileNetV2 backbone  — replaces MobileNetV3-small as default.
-    MobileNetV2 has a simpler inverted-residual architecture that
-    is better supported by ONNX/ONNX Runtime Web, TFLite, and the
-    CoreML pipeline used by PWA-bundled apps.
-
-  • PWA / Offline support — new OfflineScanCache + ServiceWorkerManifest
-    helpers that emit the files needed to make the web app installable
-    and fully offline-capable via the Cache API + IndexedDB.
-
-  • Low-end device guard  — LowEndDeviceProfile auto-detects RAM/CPU
-    budget and picks the cheapest inference path (INT8 dynamic quant,
-    reduced TTA passes, smaller input size) transparently.
-
-  • ONNX export          — MobileOptimizer gains export_onnx() which
-    produces a .onnx file loadable by onnxruntime-web in the browser,
-    enabling on-device inference with no server round-trip.
-
-  • Smarter scan validator — adds a saturation check (catches photos
-    taken through a dirty lens or with strong flash colour casts) and
-    a centre-crop plant coverage check (rejects photos where the leaf
-    occupies < 20 % of the frame).
-
-  • TTA reduced to 5 passes by default (was 7) — still accurate but
-    ~30 % faster, which keeps total scan time under 2 s on a low-end
-    Snapdragon 460 / MediaTek Helio G85.
-
-Import this AFTER importing plant_disease_cnn, or integrate directly:
-
-    from plant_disease_cnn import *
-    from plant_disease_improvements_v3 import (
-        validate_scan,
-        predict_ph_v2,
-        FarmerAnalytics,
-        MobileOptimizer,
-        MobileBenchmark,
-        LowEndDeviceProfile,
-        OfflineScanCache,
-        ServiceWorkerManifest,
-        run_flask_server_v2,
-    )
-
-Sections
-────────
-  1. SCAN VALIDATOR        — image quality gating (+ saturation + coverage)
-  2. ACCURACY IMPROVEMENTS — TTA (5-pass), focal loss, crop routing
-  3. MOBILE OPTIMIZER      — INT8, ONNX export, MobileNetV2, benchmarks
-  4. OFFLINE / PWA SUPPORT — OfflineScanCache, ServiceWorkerManifest
-  5. LOW-END DEVICE GUARD  — LowEndDeviceProfile, auto inference routing
-  6. FARMER ANALYTICS      — bilingual summaries, health score, severity map
-  7. CLEAN ARCHITECTURE    — typed pipeline, structured logging, helpers
-  8. FLASK v2 SERVER       — /predict/v2, /validate, /health/v2, /offline-assets
+PathoNet CNN — Philippine Crop Disease Detection (v3.0)
+======================================================
+MobileNetV2-based model for 8 Philippine crops × 5 diseases (40 classes).
+Features: TTA, PWA support, bilingual analytics, low-end optimization.
 """
 
 from __future__ import annotations
@@ -64,197 +11,122 @@ import base64
 import io
 import json
 import logging
-import math
 import os
-import platform
 import time
-import traceback
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from PIL import Image, ImageFilter, ImageStat
+from PIL import Image
 from torchvision import transforms
 
-# ── Disease Classes and Philippine Data ──────────────────────────────────────
+# ── Disease Classes ─────────────────────────────────────────────────────────────
 DISEASE_CLASSES = [
-    "Rice (Palay) | Healthy",
-    "Rice (Palay) | Blast",
-    "Rice (Palay) | Bacterial Leaf Blight",
-    "Rice (Palay) | Sheath Blight",
-    "Rice (Palay) | Tungro",
-    "Corn (Mais) | Healthy",
-    "Corn (Mais) | Northern Corn Leaf Blight",
-    "Corn (Mais) | Gray Leaf Spot",
-    "Corn (Mais) | Rust",
-    "Corn (Mais) | Stalk Rot",
-    "Tomato (Kamatis) | Healthy",
-    "Tomato (Kamatis) | Early Blight",
-    "Tomato (Kamatis) | Late Blight",
-    "Tomato (Kamatis) | Leaf Curl",
-    "Tomato (Kamatis) | Bacterial Wilt",
-    "Banana (Saging) | Healthy",
-    "Banana (Saging) | Sigatoka",
-    "Banana (Saging) | Moko",
-    "Banana (Saging) | Bunchy Top",
-    "Banana (Saging) | Panama Disease",
-    "Pechay | Healthy",
-    "Pechay | Downy Mildew",
-    "Pechay | Black Rot",
-    "Pechay | Aphids",
-    "Pechay | Cabbage Worm",
-    "Kangkong | Healthy",
-    "Kangkong | Leaf Spot",
-    "Kangkong | Rust",
-    "Kangkong | Aphids",
-    "Kangkong | Root Rot",
-    "Onion (Sibuyas) | Healthy",
-    "Onion (Sibuyas) | Downy Mildew",
-    "Onion (Sibuyas) | Purple Blotch",
-    "Onion (Sibuyas) | Thrips",
-    "Onion (Sibuyas) | Neck Rot",
-    "Garlic (Bawang) | Healthy",
-    "Garlic (Bawang) | Purple Stripe",
-    "Garlic (Bawang) | Basal Rot",
-    "Garlic (Bawang) | Leaf Blight",
-    "Garlic (Bawang) | Mosaic",
+    "Rice (Palay) | Healthy", "Rice (Palay) | Blast", "Rice (Palay) | Bacterial Leaf Blight",
+    "Rice (Palay) | Sheath Blight", "Rice (Palay) | Tungro",
+    "Corn (Mais) | Healthy", "Corn (Mais) | Northern Corn Leaf Blight", "Corn (Mais) | Gray Leaf Spot",
+    "Corn (Mais) | Rust", "Corn (Mais) | Stalk Rot",
+    "Tomato (Kamatis) | Healthy", "Tomato (Kamatis) | Early Blight", "Tomato (Kamatis) | Late Blight",
+    "Tomato (Kamatis) | Leaf Curl", "Tomato (Kamatis) | Bacterial Wilt",
+    "Banana (Saging) | Healthy", "Banana (Saging) | Sigatoka", "Banana (Saging) | Moko",
+    "Banana (Saging) | Bunchy Top", "Banana (Saging) | Panama Disease",
+    "Pechay | Healthy", "Pechay | Downy Mildew", "Pechay | Black Rot", "Pechay | Aphids", "Pechay | Cabbage Worm",
+    "Kangkong | Healthy", "Kangkong | Leaf Spot", "Kangkong | Rust", "Kangkong | Aphids", "Kangkong | Root Rot",
+    "Onion (Sibuyas) | Healthy", "Onion (Sibuyas) | Downy Mildew", "Onion (Sibuyas) | Purple Blotch",
+    "Onion (Sibuyas) | Thrips", "Onion (Sibuyas) | Neck Rot",
+    "Garlic (Bawang) | Healthy", "Garlic (Bawang) | Purple Stripe", "Garlic (Bawang) | Basal Rot",
+    "Garlic (Bawang) | Leaf Blight", "Garlic (Bawang) | Mosaic",
 ]
 
 DISEASE_CATEGORY = {
-    0: "healthy", 1: "fungal",   2: "bacterial", 3: "fungal",    4: "viral",
-    5: "healthy", 6: "fungal",   7: "fungal",    8: "fungal",    9: "fungal",
-    10: "healthy",11: "fungal",  12: "fungal",   13: "viral",    14: "bacterial",
-    15: "healthy",16: "fungal",  17: "bacterial",18: "viral",    19: "fungal",
-    20: "healthy",21: "fungal",  22: "fungal",   23: "pest",     24: "pest",
-    25: "healthy",26: "fungal",  27: "fungal",   28: "pest",     29: "fungal",
-    30: "healthy",31: "fungal",  32: "fungal",   33: "pest",     34: "fungal",
-    35: "healthy",36: "fungal",  37: "fungal",   38: "fungal",   39: "viral",
+    0: "healthy", 1: "fungal", 2: "bacterial", 3: "fungal", 4: "viral",
+    5: "healthy", 6: "fungal", 7: "fungal", 8: "fungal", 9: "fungal",
+    10: "healthy", 11: "fungal", 12: "fungal", 13: "viral", 14: "bacterial",
+    15: "healthy", 16: "fungal", 17: "bacterial", 18: "viral", 19: "fungal",
+    20: "healthy", 21: "fungal", 22: "fungal", 23: "pest", 24: "pest",
+    25: "healthy", 26: "fungal", 27: "fungal", 28: "pest", 29: "fungal",
+    30: "healthy", 31: "fungal", 32: "fungal", 33: "pest", 34: "fungal",
+    35: "healthy", 36: "fungal", 37: "fungal", 38: "fungal", 39: "viral",
 }
 
 NUM_CLASSES = len(DISEASE_CLASSES)
 
 PH_CROP_DISEASES = {
-    "Rice (Palay)":    ["Blast", "Bacterial Leaf Blight", "Sheath Blight", "Tungro"],
-    "Corn (Mais)":     ["Northern Corn Leaf Blight", "Gray Leaf Spot", "Rust", "Stalk Rot"],
-    "Tomato (Kamatis)":["Early Blight", "Late Blight", "Leaf Curl", "Bacterial Wilt"],
+    "Rice (Palay)": ["Blast", "Bacterial Leaf Blight", "Sheath Blight", "Tungro"],
+    "Corn (Mais)": ["Northern Corn Leaf Blight", "Gray Leaf Spot", "Rust", "Stalk Rot"],
+    "Tomato (Kamatis)": ["Early Blight", "Late Blight", "Leaf Curl", "Bacterial Wilt"],
     "Banana (Saging)": ["Sigatoka", "Moko", "Bunchy Top", "Panama Disease"],
-    "Pechay":          ["Downy Mildew", "Black Rot", "Aphids", "Cabbage Worm"],
-    "Kangkong":        ["Leaf Spot", "Rust", "Aphids", "Root Rot"],
+    "Pechay": ["Downy Mildew", "Black Rot", "Aphids", "Cabbage Worm"],
+    "Kangkong": ["Leaf Spot", "Rust", "Aphids", "Root Rot"],
     "Onion (Sibuyas)": ["Downy Mildew", "Purple Blotch", "Thrips", "Neck Rot"],
     "Garlic (Bawang)": ["Purple Stripe", "Basal Rot", "Leaf Blight", "Mosaic"],
 }
 
 PH_DISEASE_ACTIONS = {
-    "Healthy":                 {"en": "No action needed. Continue current farming practices.",
-                                "fil": "Walang kailangang gawin. Ipagpatuloy ang kasalukuyang pagsasaka."},
-    "Blast":                   {"en": "Apply tricyclazole or isoprothiolane fungicide. Avoid excessive nitrogen. Maintain proper water management.",
-                                "fil": "Mag-apply ng tricyclazole o isoprothiolane na fungicide. Iwasan ang sobrang nitrogen. Panatilihin ang tamang pangangalaga sa tubig."},
-    "Bacterial Leaf Blight":   {"en": "Use copper-based bactericides. Avoid overhead irrigation. Remove infected plants.",
-                                "fil": "Gamitin ang copper-based na bactericides. Iwasan ang overhead irrigation. Alisin ang mga nahawaang halaman."},
-    "Sheath Blight":           {"en": "Apply validamycin or propiconazole. Avoid dense planting. Improve field drainage.",
-                                "fil": "Mag-apply ng validamycin o propiconazole. Iwasan ang siksik na pagtatanim. Pahusayin ang drainage sa bukid."},
-    "Tungro":                  {"en": "Control green leafhopper vectors. Use tungro-resistant varieties. Remove infected plants immediately.",
-                                "fil": "Kontrolin ang green leafhopper na vectors. Gamitin ang tungro-resistant varieties. Alisin agad ang mga nahawaang halaman."},
-    "Northern Corn Leaf Blight":{"en": "Apply foliar fungicides. Use resistant hybrids. Practice crop rotation.",
-                                "fil": "Mag-apply ng foliar fungicides. Gamitin ang resistant hybrids. Mag-crop rotation."},
-    "Gray Leaf Spot":          {"en": "Apply strobilurin fungicides. Avoid late planting. Maintain proper plant spacing.",
-                                "fil": "Mag-apply ng strobilurin fungicides. Iwasan ang huli na pagtatanim. Panatilihin ang tamang pagitan ng halaman."},
-    "Rust":                    {"en": "Apply triazole fungicides. Remove infected leaves. Improve air circulation.",
-                                "fil": "Mag-apply ng triazole fungicides. Alisin ang mga nahawaang dahon. Pahusayin air circulation."},
-    "Stalk Rot":               {"en": "Improve drainage. Avoid excessive nitrogen. Use resistant varieties.",
-                                "fil": "Pahusayin ang drainage. Iwasan ang sobrang nitrogen. Gamitin ang resistant varieties."},
-    "Early Blight":            {"en": "Apply chlorothalonil or copper fungicides. Remove infected leaves. Avoid overhead irrigation.",
-                                "fil": "Mag-apply ng chlorothalonil o copper fungicides. Alisin ang mga nahawaang dahon. Iwasan ang overhead irrigation."},
-    "Late Blight":             {"en": "Apply mancozeb or chlorothalonil immediately. Remove infected plants. Improve air circulation.",
-                                "fil": "Mag-apply ng mancozeb o chlorothalonil kaagad. Alisin ang mga nahawaang halaman. Pahusayin air circulation."},
-    "Leaf Curl":               {"en": "Control whitefly vectors. Use yellow sticky traps. Apply neem oil spray.",
-                                "fil": "Kontrolin ang whitefly na vectors. Gamitin ang yellow sticky traps. Mag-apply ng neem oil spray."},
-    "Bacterial Wilt":          {"en": "Remove infected plants immediately. Use disease-free seedlings. Avoid soil contamination.",
-                                "fil": "Alisin agad ang mga nahawaang halaman. Gamitin ang disease-free seedlings. Iwasan ang soil contamination."},
-    "Sigatoka":                {"en": "Apply mancozeb or propiconazole. Remove infected leaves. Improve drainage.",
-                                "fil": "Mag-apply ng mancozeb o propiconazole. Alisin ang mga nahawaang dahon. Pahusayin ang drainage."},
-    "Moko":                    {"en": "Remove infected plants immediately. Disinfect tools. Use disease-free suckers.",
-                                "fil": "Alisin agad ang mga nahawaang halaman. I-disinfect ang mga tool. Gamitin ang disease-free suckers."},
-    "Bunchy Top":              {"en": "Remove infected plants immediately. Control aphid vectors. Use virus-free planting material.",
-                                "fil": "Alisin agad ang mga nahawaang halaman. Kontrolin ang aphid vectors. Gamitin ang virus-free planting material."},
-    "Panama Disease":          {"en": "Remove infected plants. Use resistant varieties. Avoid soil movement from infected areas.",
-                                "fil": "Alisin ang mga nahawaang halaman. Gamitin ang resistant varieties. Iwasan ang paggalaw ng lupa mula sa nahawaang lugar."},
-    "Downy Mildew":            {"en": "Apply mancozeb or copper fungicides. Improve air circulation. Avoid overhead irrigation.",
-                                "fil": "Mag-apply ng mancozeb o copper fungicides. Pahusayin air circulation. Iwasan ang overhead irrigation."},
-    "Black Rot":               {"en": "Apply copper fungicides. Remove infected leaves. Practice crop rotation.",
-                                "fil": "Mag-apply ng copper fungicides. Alisin ang mga nahawaang dahon. Mag-crop rotation."},
-    "Aphids":                  {"en": "Apply neem oil or insecticidal soap. Introduce ladybugs. Remove heavily infested leaves.",
-                                "fil": "Mag-apply ng neem oil o insecticidal soap. Ilagay ang ladybugs. Alisin ang mga sobrang damihang aphids na dahon."},
-    "Cabbage Worm":            {"en": "Handpick caterpillars. Apply Bt (Bacillus thuringiensis). Use row covers.",
-                                "fil": "Pumili ng mga caterpillar nang manu-mano. Mag-apply ng Bt. Gamitin ang row covers."},
-    "Leaf Spot":               {"en": "Apply copper fungicides. Remove infected leaves. Improve air circulation.",
-                                "fil": "Mag-apply ng copper fungicides. Alisin ang mga nahawaang dahon. Pahusayin air circulation."},
-    "Root Rot":                {"en": "Improve drainage. Avoid overwatering. Use fungicide drench.",
-                                "fil": "Pahusayin ang drainage. Iwasan ang sobrang pagtubig. Gamitin ang fungicide drench."},
-    "Purple Blotch":           {"en": "Apply mancozeb or iprodione. Avoid overhead irrigation. Remove infected plants.",
-                                "fil": "Mag-apply ng mancozeb o iprodione. Iwasan ang overhead irrigation. Alisin ang mga nahawaang halaman."},
-    "Thrips":                  {"en": "Apply blue sticky traps. Use insecticidal soap. Remove infested plants.",
-                                "fil": "Gamitin ang blue sticky traps. Mag-apply ng insecticidal soap. Alisin ang mga may thrips na halaman."},
-    "Neck Rot":                {"en": "Apply fungicide before harvest. Cure onions properly. Store in cool, dry place.",
-                                "fil": "Mag-apply ng fungicide bago ang ani. Paunin nang tama ang sibuyas. Iimbak sa malamig at tuyo na lugar."},
-    "Purple Stripe":           {"en": "Apply mancozeb. Avoid overhead irrigation. Remove infected leaves.",
-                                "fil": "Mag-apply ng mancozeb. Iwasan ang overhead irrigation. Alisin ang mga nahawaang dahon."},
-    "Basal Rot":               {"en": "Treat cloves with fungicide before planting. Improve drainage. Avoid overwatering.",
-                                "fil": "Gamutin ang cloves ng fungicide bago magtatanim. Pahusayin ang drainage. Iwasan ang sobrang pagtubig."},
-    "Leaf Blight":             {"en": "Apply chlorothalonil. Remove infected leaves. Improve air circulation.",
-                                "fil": "Mag-apply ng chlorothalonil. Alisin ang mga nahawaang dahon. Pahusayin air circulation."},
-    "Mosaic":                  {"en": "Remove infected plants. Control aphid vectors. Use virus-free cloves.",
-                                "fil": "Alisin ang mga nahawaang halaman. Kontrolin ang aphid vectors. Gamitin ang virus-free cloves."},
+    "Healthy": {"en": "No action needed. Continue current farming practices.", "fil": "Walang kailangang gawin. Ipagpatuloy ang kasalukuyang pagsasaka."},
+    "Blast": {"en": "Apply tricyclazole or isoprothiolane fungicide. Avoid excessive nitrogen. Maintain proper water management.", "fil": "Mag-apply ng tricyclazole o isoprothiolane na fungicide. Iwasan ang sobrang nitrogen. Panatilihin ang tamang pangangalaga sa tubig."},
+    "Bacterial Leaf Blight": {"en": "Use copper-based bactericides. Avoid overhead irrigation. Remove infected plants.", "fil": "Gamitin ang copper-based na bactericides. Iwasan ang overhead irrigation. Alisin ang mga nahawaang halaman."},
+    "Sheath Blight": {"en": "Apply validamycin or propiconazole. Avoid dense planting. Improve field drainage.", "fil": "Mag-apply ng validamycin o propiconazole. Iwasan ang siksik na pagtatanim. Pahusayin ang drainage sa bukid."},
+    "Tungro": {"en": "Control green leafhopper vectors. Use tungro-resistant varieties. Remove infected plants immediately.", "fil": "Kontrolin ang green leafhopper na vectors. Gamitin ang tungro-resistant varieties. Alisin agad ang mga nahawaang halaman."},
+    "Northern Corn Leaf Blight": {"en": "Apply foliar fungicides. Use resistant hybrids. Practice crop rotation.", "fil": "Mag-apply ng foliar fungicides. Gamitin ang resistant hybrids. Mag-crop rotation."},
+    "Gray Leaf Spot": {"en": "Apply strobilurin fungicides. Avoid late planting. Maintain proper plant spacing.", "fil": "Mag-apply ng strobilurin fungicides. Iwasan ang huli na pagtatanim. Panatilihin ang tamang pagitan ng halaman."},
+    "Rust": {"en": "Apply triazole fungicides. Remove infected leaves. Improve air circulation.", "fil": "Mag-apply ng triazole fungicides. Alisin ang mga nahawaang dahon. Pahusayin air circulation."},
+    "Stalk Rot": {"en": "Improve drainage. Avoid excessive nitrogen. Use resistant varieties.", "fil": "Pahusayin ang drainage. Iwasan ang sobrang nitrogen. Gamitin ang resistant varieties."},
+    "Early Blight": {"en": "Apply chlorothalonil or copper fungicides. Remove infected leaves. Avoid overhead irrigation.", "fil": "Mag-apply ng chlorothalonil o copper fungicides. Alisin ang mga nahawaang dahon. Iwasan ang overhead irrigation."},
+    "Late Blight": {"en": "Apply mancozeb or chlorothalonil immediately. Remove infected plants. Improve air circulation.", "fil": "Mag-apply ng mancozeb o chlorothalonil kaagad. Alisin ang mga nahawaang halaman. Pahusayin air circulation."},
+    "Leaf Curl": {"en": "Control whitefly vectors. Use yellow sticky traps. Apply neem oil spray.", "fil": "Kontrolin ang whitefly na vectors. Gamitin ang yellow sticky traps. Mag-apply ng neem oil spray."},
+    "Bacterial Wilt": {"en": "Remove infected plants immediately. Use disease-free seedlings. Avoid soil contamination.", "fil": "Alisin agad ang mga nahawaang halaman. Gamitin ang disease-free seedlings. Iwasan ang soil contamination."},
+    "Sigatoka": {"en": "Apply mancozeb or propiconazole. Remove infected leaves. Improve drainage.", "fil": "Mag-apply ng mancozeb o propiconazole. Alisin ang mga nahawaang dahon. Pahusayin ang drainage."},
+    "Moko": {"en": "Remove infected plants immediately. Disinfect tools. Use disease-free suckers.", "fil": "Alisin agad ang mga nahawaang halaman. I-disinfect ang mga tool. Gamitin ang disease-free suckers."},
+    "Bunchy Top": {"en": "Remove infected plants immediately. Control aphid vectors. Use virus-free planting material.", "fil": "Alisin agad ang mga nahawaang halaman. Kontrolin ang aphid vectors. Gamitin ang virus-free planting material."},
+    "Panama Disease": {"en": "Remove infected plants. Use resistant varieties. Avoid soil movement from infected areas.", "fil": "Alisin ang mga nahawaang halaman. Gamitin ang resistant varieties. Iwasan ang paggalaw ng lupa mula sa nahawaang lugar."},
+    "Downy Mildew": {"en": "Apply mancozeb or copper fungicides. Improve air circulation. Avoid overhead irrigation.", "fil": "Mag-apply ng mancozeb o copper fungicides. Pahusayin air circulation. Iwasan ang overhead irrigation."},
+    "Black Rot": {"en": "Apply copper fungicides. Remove infected leaves. Practice crop rotation.", "fil": "Mag-apply ng copper fungicides. Alisin ang mga nahawaang dahon. Mag-crop rotation."},
+    "Aphids": {"en": "Apply neem oil or insecticidal soap. Introduce ladybugs. Remove heavily infested leaves.", "fil": "Mag-apply ng neem oil o insecticidal soap. Ilagay ang ladybugs. Alisin ang mga sobrang damihang aphids na dahon."},
+    "Cabbage Worm": {"en": "Handpick caterpillars. Apply Bt (Bacillus thuringiensis). Use row covers.", "fil": "Pumili ng mga caterpillar nang manu-mano. Mag-apply ng Bt. Gamitin ang row covers."},
+    "Leaf Spot": {"en": "Apply copper fungicides. Remove infected leaves. Improve air circulation.", "fil": "Mag-apply ng copper fungicides. Alisin ang mga nahawaang dahon. Pahusayin air circulation."},
+    "Root Rot": {"en": "Improve drainage. Avoid overwatering. Use fungicide drench.", "fil": "Pahusayin ang drainage. Iwasan ang sobrang pagtubig. Gamitin ang fungicide drench."},
+    "Purple Blotch": {"en": "Apply mancozeb or iprodione. Avoid overhead irrigation. Remove infected plants.", "fil": "Mag-apply ng mancozeb o iprodione. Iwasan ang overhead irrigation. Alisin ang mga nahawaang halaman."},
+    "Thrips": {"en": "Apply blue sticky traps. Use insecticidal soap. Remove infested plants.", "fil": "Gamitin ang blue sticky traps. Mag-apply ng insecticidal soap. Alisin ang mga may thrips na halaman."},
+    "Neck Rot": {"en": "Apply fungicide before harvest. Cure onions properly. Store in cool, dry place.", "fil": "Mag-apply ng fungicide bago ang ani. Paunin nang tama ang sibuyas. Iimbak sa malamig at tuyo na lugar."},
+    "Purple Stripe": {"en": "Apply mancozeb. Avoid overhead irrigation. Remove infected leaves.", "fil": "Mag-apply ng mancozeb. Iwasan ang overhead irrigation. Alisin ang mga nahawaang dahon."},
+    "Basal Rot": {"en": "Treat cloves with fungicide before planting. Improve drainage. Avoid overwatering.", "fil": "Gamutin ang cloves ng fungicide bago magtatanim. Pahusayin ang drainage. Iwasan ang sobrang pagtubig."},
+    "Leaf Blight": {"en": "Apply chlorothalonil. Remove infected leaves. Improve air circulation.", "fil": "Mag-apply ng chlorothalonil. Alisin ang mga nahawaang dahon. Pahusayin air circulation."},
+    "Mosaic": {"en": "Remove infected plants. Control aphid vectors. Use virus-free cloves.", "fil": "Alisin ang mga nahawaang halaman. Kontrolin ang aphid vectors. Gamitin ang virus-free cloves."},
 }
 
-# Philippine field normalization statistics (calibrated on PH crop images)
+# Philippine normalization stats
 PH_NORMALIZE_MEAN = [0.423, 0.489, 0.316]
-PH_NORMALIZE_STD  = [0.198, 0.204, 0.187]
+PH_NORMALIZE_STD = [0.198, 0.204, 0.187]
 
 # Philippine region crop priors
 PH_REGION_CROP_PRIORS = {
-    "NCR":          {"Rice (Palay)": 0.10, "Corn (Mais)": 0.05, "Tomato (Kamatis)": 0.30,
-                     "Pechay": 0.25, "Kangkong": 0.20, "Onion (Sibuyas)": 0.05, "Garlic (Bawang)": 0.05},
-    "CALABARZON":   {"Rice (Palay)": 0.20, "Corn (Mais)": 0.10, "Tomato (Kamatis)": 0.25,
-                     "Banana (Saging)": 0.15, "Pechay": 0.15, "Kangkong": 0.10, "Onion (Sibuyas)": 0.05},
-    "Central Luzon":{"Rice (Palay)": 0.50, "Corn (Mais)": 0.30, "Tomato (Kamatis)": 0.10,
-                     "Onion (Sibuyas)": 0.05, "Garlic (Bawang)": 0.05},
-    "Visayas":      {"Rice (Palay)": 0.35, "Corn (Mais)": 0.15, "Banana (Saging)": 0.25,
-                     "Pechay": 0.10, "Kangkong": 0.15},
-    "Mindanao":     {"Rice (Palay)": 0.25, "Corn (Mais)": 0.25, "Banana (Saging)": 0.30,
-                     "Tomato (Kamatis)": 0.10, "Kangkong": 0.10},
+    "NCR": {"Rice (Palay)": 0.10, "Corn (Mais)": 0.05, "Tomato (Kamatis)": 0.30, "Pechay": 0.25, "Kangkong": 0.20, "Onion (Sibuyas)": 0.05, "Garlic (Bawang)": 0.05},
+    "CALABARZON": {"Rice (Palay)": 0.20, "Corn (Mais)": 0.10, "Tomato (Kamatis)": 0.25, "Banana (Saging)": 0.15, "Pechay": 0.15, "Kangkong": 0.10, "Onion (Sibuyas)": 0.05},
+    "Central Luzon": {"Rice (Palay)": 0.50, "Corn (Mais)": 0.30, "Tomato (Kamatis)": 0.10, "Onion (Sibuyas)": 0.05, "Garlic (Bawang)": 0.05},
+    "Visayas": {"Rice (Palay)": 0.35, "Corn (Mais)": 0.15, "Banana (Saging)": 0.25, "Pechay": 0.10, "Kangkong": 0.15},
+    "Mindanao": {"Rice (Palay)": 0.25, "Corn (Mais)": 0.25, "Banana (Saging)": 0.30, "Tomato (Kamatis)": 0.10, "Kangkong": 0.10},
 }
 
-# Standalone mode flag (set True when plant_disease_cnn is available)
+# Standalone mode flag
 _BASE_AVAILABLE = False
 
-# ─────────────────────────────────────────────────────────────────────────────
-#  STRUCTURED LOGGER
-# ─────────────────────────────────────────────────────────────────────────────
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] [%(levelname)s] %(name)s — %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+# Logger
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s — %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 log = logging.getLogger("PathoNet.v3")
 
 
 # =============================================================================
-#  STUB IMPLEMENTATIONS  (standalone mode — no plant_disease_cnn required)
+#  MODEL LOADING AND INFERENCE
 # =============================================================================
 
-def load_model(weights_path: Optional[str] = None,
-               device: str = "cpu",
-               backbone: str = "mobilenetv2") -> "PlantGuardModel":
+def load_model(weights_path: Optional[str] = None, device: str = "cpu", backbone: str = "mobilenetv2") -> "PlantGuardModel":
     """Load trained model from weights file or return untrained model."""
-    model = PlantGuardModel(backbone=backbone, pretrained=False)
-    model = model.to(device)
+    model = PlantGuardModel(backbone=backbone, pretrained=False).to(device)
     
     if weights_path and os.path.exists(weights_path):
         try:
@@ -275,16 +147,7 @@ def load_model(weights_path: Optional[str] = None,
 
 
 class PlantGuardModel(nn.Module):
-    """
-    Stub PlantGuardModel — uses MobileNetV2 as default backbone (v3 change).
-
-    MobileNetV2 advantages for this use-case:
-      • Inverted-residual + linear bottleneck = fewer parameters than MobileNetV3-small
-        for equivalent accuracy on plant disease benchmarks (PlantVillage ≈ 95 % top-1).
-      • Fully supported by ONNX opset 11 → onnxruntime-web → offline PWA inference.
-      • Better TFLite and CoreML conversion fidelity.
-      • QNNPACK INT8 quantisation maps cleanly to Depthwise + Pointwise conv.
-    """
+    """MobileNetV2-based model for Philippine crop disease detection (40 classes)."""
 
     def __init__(self, backbone: str = "mobilenetv2", pretrained: bool = True):
         super().__init__()
@@ -294,15 +157,11 @@ class PlantGuardModel(nn.Module):
     def _build_backbone(self, backbone: str, pretrained: bool):
         """Build backbone + classifier head."""
         try:
-            from torchvision.models import (
-                mobilenet_v2, MobileNet_V2_Weights,
-                mobilenet_v3_small, MobileNet_V3_Small_Weights,
-                efficientnet_b0, EfficientNet_B0_Weights,
-            )
+            from torchvision.models import mobilenet_v2, MobileNet_V2_Weights, mobilenet_v3_small, MobileNet_V3_Small_Weights, efficientnet_b0, EfficientNet_B0_Weights
             weights_map = {
-                "mobilenetv2":       (mobilenet_v2,      MobileNet_V2_Weights.DEFAULT if pretrained else None),
+                "mobilenetv2": (mobilenet_v2, MobileNet_V2_Weights.DEFAULT if pretrained else None),
                 "mobilenetv3_small": (mobilenet_v3_small, MobileNet_V3_Small_Weights.DEFAULT if pretrained else None),
-                "efficientnet_b0":   (efficientnet_b0,   EfficientNet_B0_Weights.DEFAULT if pretrained else None),
+                "efficientnet_b0": (efficientnet_b0, EfficientNet_B0_Weights.DEFAULT if pretrained else None),
             }
             if backbone not in weights_map:
                 log.warning("Unknown backbone '%s', falling back to mobilenetv2.", backbone)
@@ -311,24 +170,23 @@ class PlantGuardModel(nn.Module):
             fn, w = weights_map[backbone]
             base = fn(weights=w)
 
-            # Replace the final classifier with one sized for NUM_CLASSES
             if backbone == "mobilenetv2":
                 in_feats = base.classifier[1].in_features
                 base.classifier[1] = nn.Linear(in_feats, NUM_CLASSES)
-                self.features   = base.features
-                self.avgpool    = base.avgpool if hasattr(base, "avgpool") else nn.AdaptiveAvgPool2d((1, 1))
+                self.features = base.features
+                self.avgpool = base.avgpool if hasattr(base, "avgpool") else nn.AdaptiveAvgPool2d((1, 1))
                 self.classifier = base.classifier
                 self._forward_mode = "mobilenetv2"
 
             elif backbone == "mobilenetv3_small":
                 in_feats = base.classifier[-1].in_features
                 base.classifier[-1] = nn.Linear(in_feats, NUM_CLASSES)
-                self.features   = base.features
-                self.avgpool    = base.avgpool
+                self.features = base.features
+                self.avgpool = base.avgpool
                 self.classifier = base.classifier
                 self._forward_mode = "mobilenetv3"
 
-            else:  # efficientnet_b0
+            else:
                 in_feats = base.classifier[-1].in_features
                 base.classifier[-1] = nn.Linear(in_feats, NUM_CLASSES)
                 self._base = base
@@ -336,20 +194,16 @@ class PlantGuardModel(nn.Module):
 
         except Exception as e:
             log.warning("torchvision backbone unavailable (%s). Using minimal stub.", e)
-            self.features   = nn.Sequential(
+            self.features = nn.Sequential(
                 nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1),
                 nn.BatchNorm2d(32),
                 nn.ReLU6(inplace=True),
-                # Depthwise separable convolution (MobileNetV2-style)
                 nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, groups=32),
                 nn.Conv2d(32, 64, kernel_size=1),
                 nn.ReLU6(inplace=True),
                 nn.AdaptiveAvgPool2d((1, 1)),
             )
-            self.classifier = nn.Sequential(
-                nn.Dropout(p=0.2),
-                nn.Linear(64, NUM_CLASSES),
-            )
+            self.classifier = nn.Sequential(nn.Dropout(p=0.2), nn.Linear(64, NUM_CLASSES))
             self._forward_mode = "stub"
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
