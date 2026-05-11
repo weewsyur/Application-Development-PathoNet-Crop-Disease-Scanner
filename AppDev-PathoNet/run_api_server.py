@@ -9,8 +9,8 @@ import os
 # Add the app/components directory to the path so we can import plant_disease modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app', 'components'))
 
-# Import from plant_disease_improvements (now standalone)
-from plant_disease_improvements import run_flask_server_v2
+# Import from PathoNetV1 (new API)
+from PathoNetV1 import run_flask_server_v2
 
 if __name__ == "__main__":
     print("=" * 70)
