@@ -90,12 +90,16 @@ const ScanAlertBanner = React.memo(function ScanAlertBanner({
     const history: ScanRecord[] = raw ? JSON.parse(raw) : [];
     const idx = history.findIndex((r) => r.timestamp === timestamp);
     if (idx === -1) {
+      // Scan not in history - use unpersisted callback if available, otherwise log and return
       if (onUnpersistedNote) {
         onUnpersistedNote(text);
         onNoteSaved?.(text);
         return;
       }
-      throw new Error("Scan not found in local history");
+      // Don't throw error - just log and return to prevent call stack crash
+      console.warn("[ScanAlertBanner] Scan not found in local history, note not persisted");
+      onNoteSaved?.(text);
+      return;
     }
     const prev = history[idx];
     const updatedRecord: ScanRecord = {

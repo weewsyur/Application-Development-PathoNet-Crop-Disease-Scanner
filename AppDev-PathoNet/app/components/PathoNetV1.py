@@ -12,9 +12,11 @@ import io
 import json
 import logging
 import os
+import platform
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -1090,6 +1092,7 @@ class MobileBenchmark:
 
     def run(self, n_warmup: int = 5, n_runs: int = 30,
             batch_size: int = 1, input_size: int = 224) -> Dict[str, Any]:
+        import platform  # local safeguard in case module-level import is unreachable
         self.model.eval()
         dummy = torch.randn(batch_size, 3, input_size, input_size)
         with torch.no_grad():
@@ -1561,6 +1564,7 @@ class LowEndDeviceProfile:
     @classmethod
     def detect(cls) -> "LowEndDeviceProfile":
         """Auto-detect hardware and return the appropriate profile."""
+        import platform  # local safeguard in case module-level import is unreachable
         try:
             import psutil
             ram_gb = psutil.virtual_memory().total / 1e9
@@ -1966,7 +1970,7 @@ def run_flask_server_v2(
     port:                 int           = 5000,
     backbone:             str           = "mobilenetv2",
     enable_legacy_routes: bool          = True,
-    offline_cache_file:   str           = ".pathonet_cache.json",
+    offline_cache_file:   Optional[str] = ".pathonet_cache.json",
 ):
     """
     Extended Flask server — v3 adds:
@@ -1983,15 +1987,22 @@ def run_flask_server_v2(
         return
 
     app     = Flask(__name__)
-    CORS(app)
+    CORS(app, origins=["http://localhost:8081", "http://127.0.0.1:8081", "http://localhost:19006", "http://127.0.0.1:19006"])
     profile = LowEndDeviceProfile.detect()
-    cache   = OfflineScanCache(cache_file=offline_cache_file)
+    cache   = OfflineScanCache(cache_file=offline_cache_file or ".pathonet_cache.json")
     pipeline = InferencePipeline(
         weights_path=weights_path, backbone=backbone,
         device_profile=profile, offline_cache=cache,
     )
 
     analytics_obj = FarmerAnalytics()
+
+    # ── ping endpoint (lightweight health check) ───────────────────────────
+
+    @app.route("/ping", methods=["GET"])
+    def ping():
+        """Lightweight health check endpoint."""
+        return jsonify({"status": "ok", "service": "pathonet-api"})
 
     # ── v2 predict ────────────────────────────────────────────────────────
 
