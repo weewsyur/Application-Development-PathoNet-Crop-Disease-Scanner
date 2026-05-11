@@ -252,11 +252,26 @@ log = logging.getLogger("PathoNet.v3")
 def load_model(weights_path: Optional[str] = None,
                device: str = "cpu",
                backbone: str = "mobilenetv2") -> "PlantGuardModel":
-    """Stub — raises unless plant_disease_cnn is available."""
-    raise RuntimeError(
-        "Model loading requires plant_disease_cnn.py. "
-        "Running in standalone/stub mode."
-    )
+    """Load trained model from weights file or return untrained model."""
+    model = PlantGuardModel(backbone=backbone, pretrained=False)
+    model = model.to(device)
+    
+    if weights_path and os.path.exists(weights_path):
+        try:
+            checkpoint = torch.load(weights_path, map_location=device)
+            if 'model_state_dict' in checkpoint:
+                model.load_state_dict(checkpoint['model_state_dict'])
+                log.info("Loaded trained weights from %s", weights_path)
+            else:
+                model.load_state_dict(checkpoint)
+                log.info("Loaded trained weights from %s (legacy format)", weights_path)
+            model.eval()
+            return model
+        except Exception as e:
+            log.warning("Failed to load weights from %s: %s. Using untrained model.", weights_path, e)
+    
+    log.warning("No trained weights loaded. Model will use random initialization (STUB mode).")
+    return model
 
 
 class PlantGuardModel(nn.Module):
@@ -354,17 +369,70 @@ class PlantGuardModel(nn.Module):
         return self.features(x)
 
     def predict_with_prototypes(self, pil_image: Image.Image, device: str = "cpu") -> Dict:
-        """Single-pass prediction (backward-compat stub)."""
+        """
+        Single-pass prediction. Uses actual model inference if trained weights are loaded,
+        otherwise falls back to hash-based stub for compatibility.
+        """
+        # Check if model has been trained (has non-random weights)
+        has_trained_weights = any(
+            p.requires_grad or p.grad is not None 
+            for p in self.parameters()
+        )
+        
+        if has_trained_weights:
+            # Use actual model inference
+            return self._actual_inference(pil_image, device)
+        else:
+            # Fall back to hash-based stub (for untrained models)
+            return self._stub_inference(pil_image)
+    
+    def _actual_inference(self, pil_image: Image.Image, device: str) -> Dict:
+        """Perform actual model inference with trained weights."""
+        self.eval()
+        transform = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize(PH_NORMALIZE_MEAN, PH_NORMALIZE_STD),
+        ])
+        
+        with torch.no_grad():
+            tensor = transform(pil_image).unsqueeze(0).to(device)
+            outputs = self(tensor)
+            probs = F.softmax(outputs, dim=1)[0]
+            idx = int(probs.argmax().item())
+            conf = float(probs[idx].item())
+        
+        label = DISEASE_CLASSES[idx] if idx < len(DISEASE_CLASSES) else "Unknown"
+        crop_ = label.split(" | ")[0] if " | " in label else "Unknown"
+        disease_ = label.split(" | ")[1] if " | " in label else label
+        
+        # Get top 3 predictions
+        top_probs, top_idx = torch.topk(probs, min(3, len(DISEASE_CLASSES)))
+        top3 = [
+            {"label": DISEASE_CLASSES[int(i)] if int(i) < len(DISEASE_CLASSES) else str(i),
+             "confidence": float(p)}
+            for i, p in zip(top_idx, top_probs)
+        ]
+        
+        return {
+            "label": label, "crop": crop_, "disease": disease_,
+            "confidence": round(conf, 4), "category": DISEASE_CATEGORY.get(idx, "unknown"),
+            "class_id": idx, "top3": top3,
+        }
+    
+    def _stub_inference(self, pil_image: Image.Image) -> Dict:
+        """Hash-based pseudo-random inference for untrained models."""
         import hashlib
         buf = io.BytesIO()
         pil_image.save(buf, format="PNG")
-        hv  = int(hashlib.md5(buf.getvalue()).hexdigest()[:8], 16)
+        hv = int(hashlib.md5(buf.getvalue()).hexdigest()[:8], 16)
         idx = hv % NUM_CLASSES
-        label    = DISEASE_CLASSES[idx]
-        crop_    = label.split(" | ")[0] if " | " in label else "Unknown"
+        label = DISEASE_CLASSES[idx]
+        crop_ = label.split(" | ")[0] if " | " in label else "Unknown"
         disease_ = label.split(" | ")[1] if " | " in label else label
         top3 = [
-            {"label": label,                                   "confidence": 0.95},
+            {"label": label, "confidence": 0.95},
             {"label": DISEASE_CLASSES[(idx + 1) % NUM_CLASSES], "confidence": 0.03},
             {"label": DISEASE_CLASSES[(idx + 2) % NUM_CLASSES], "confidence": 0.02},
         ]

@@ -23,14 +23,18 @@ if __name__ == "__main__":
     print("✓ Benchmark:      GET  http://localhost:5000/benchmark (dev only)")
     print("\nPress Ctrl+C to stop the server.\n")
     
-    # Uncomment the line below if you have trained model weights
-    # run_flask_server_v2(weights_path="path/to/your/weights.pt", port=5000)
-    
-    # For now, run without pre-loaded weights (model initialized randomly)
-    # NOTE: Without trained weights, the API uses STUB mode with pseudo-random predictions
-    # To get accurate plant disease detection, you need to train the model and provide weights
-    print("⚠️  WARNING: Running in STUB mode (no trained weights)")
-    print("   Predictions will be pseudo-random, NOT actual plant analysis")
-    print("   To fix: Train the model and provide weights_path='plantguard.pt'")
-    print()
-    run_flask_server_v2(weights_path=None, port=5000)
+    # Check if trained model exists
+    weights_path = "./models/plantguard_final.pt"
+    if os.path.exists(weights_path):
+        print(f"✓ Loading trained model from: {weights_path}")
+        run_flask_server_v2(weights_path=weights_path, port=5000)
+    else:
+        print("⚠️  WARNING: No trained model found")
+        print(f"   Expected weights at: {weights_path}")
+        print("   Running in STUB mode with pseudo-random predictions")
+        print("\n   To train the model:")
+        print("   1. Prepare your dataset in ./data directory")
+        print("   2. Run: python train_model.py --data_dir ./data --epochs 50")
+        print("   3. The trained model will be saved to ./models/plantguard_final.pt")
+        print()
+        run_flask_server_v2(weights_path=None, port=5000)
