@@ -19,9 +19,22 @@
             "value": "public, max-age=31536000"
           }
         ]
+      },
+      {
+        "source": "/_expo/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=3600"
+          }
+        ]
       }
     ],
     "rewrites": [
+      {
+        "source": "/_expo/(.*)",
+        "destination": "/_expo/$1"
+      },
       {
         "source": "**",
         "destination": "/index.html"

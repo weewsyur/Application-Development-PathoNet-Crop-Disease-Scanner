@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Vercel Serverless Function for PathoNet API
+Firebase Hosting Cloud Function for PathoNet API
 """
 import json
 import os
@@ -68,7 +68,7 @@ def after_request(response):
     header['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     return response
 
-# Vercel serverless handler
+# Firebase Hosting compatible entry point
 def handler(request):
-    """Vercel serverless function handler"""
+    """Firebase Hosting Cloud Function handler"""
     return app(request.environ, lambda status, headers: None)
