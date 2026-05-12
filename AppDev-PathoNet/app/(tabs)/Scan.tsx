@@ -45,6 +45,7 @@ import {
   isPredictionValidationFailure,
   getPredictionErrorCode,
 } from "@/services/api";
+import { pathoNetSimpleClient, type LocalPredictionResult, type LocalScanRecord } from "@/utils/pathonetClientSimple";
 
 const { height } = Dimensions.get("window");
 
@@ -119,20 +120,15 @@ export default function ScanScreen() {
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    // Check server health on mount
-    const checkServerHealth = async () => {
+    // Initialize local ML client instead of checking server health
+    const initLocalML = async () => {
       try {
-        const isHealthy = await checkApiHealth(API_BASE);
-        if (isHealthy) {
-          setServerHealth("online");
-          console.log("[Scan] Server health check: ONLINE");
-        } else {
-          setServerHealth("offline");
-          console.warn("[Scan] Server health check: OFFLINE");
-        }
+        await pathoNetSimpleClient.loadModel();
+        setServerHealth("online"); // Local ML is always "online"
+        console.log("[Scan] Local ML client initialized successfully");
       } catch (error) {
         setServerHealth("offline");
-        console.warn("[Scan] Server health check: OFFLINE", error);
+        console.warn("[Scan] Local ML initialization failed:", error);
       }
     };
 
@@ -161,7 +157,7 @@ export default function ScanScreen() {
 
     loadHistory().catch(e => console.error("[Scan] loadHistory error:", e));
     initAnalyticsIds();
-    checkServerHealth();
+    initLocalML();
     // Sync from Firestore in background
     syncFromFirestore().catch(e => console.error("[Scan] syncFromFirestore error:", e));
     return () => { };
@@ -270,101 +266,71 @@ export default function ScanScreen() {
     }
   }, []);
 
-  // ── Call FastAPI /predict/v3 (PathoNetFastAPI.py v3 endpoint) ─────────────────────
+  // ── Call Local PathoNet Client (No API needed) ─────────────────────────────────────
   const callCnnApi = useCallback(async (base64Image: string): Promise<ScanRecord> => {
-    console.log("[Scan] API Request Details:", {
-      url: `${API_BASE}/predict/v3`,
+    console.log("[Scan] Local ML Request Details:", {
       platform: Platform.OS,
       hasImage: !!base64Image,
       imageSize: base64Image?.length,
       userId,
       sessionId,
+      usingLocalClient: true
     });
 
     try {
-      const request: PredictionRequest = {
-        image: base64Image,
-        confidence_threshold: 0.5, // FastAPI v3 uses confidence_threshold instead of use_tta
+      // Convert base64 to image element for local processing
+      const imageElement = await base64ToImageElement(base64Image);
+
+      // Use local PathoNet client for prediction
+      const prediction: LocalPredictionResult = await pathoNetSimpleClient.predict(imageElement);
+
+      // Create scan record from local prediction
+      const localRecord: LocalScanRecord = pathoNetSimpleClient.createScanRecord(
+        imageUri || '',
+        prediction,
+        userId,
+        sessionId
+      );
+
+      // Map local record to ScanRecord format
+      const record: ScanRecord = {
+        label: prediction.diseaseName,
+        category: prediction.category as any,
+        confidence: prediction.confidence,
+        class_id: 0, // Local client doesn't provide class_id
+        top3: [], // Local client provides single prediction
+        timestamp: new Date(localRecord.timestamp).toISOString(),
+        imageUri: imageUri || undefined,
       };
 
-      const response: PredictionResponse = await predictImage(request, userId, sessionId);
+      console.log("[Scan] Local ML Prediction complete:", record);
+      return record;
 
-      console.log("[Scan] PathoNetV1 API Response:", response);
-
-      // Handle v2 response format from PathoNetV1.py
-      if (!response.success) {
-        console.error("[Scan] API returned success=false:", response);
-
-        if (isPredictionValidationFailure(response)) {
-          const errCode = getPredictionErrorCode(response) || "INVALID_SCAN";
-          const userMessage =
-            response.message || response.error || "Invalid scan. Please try with a clearer photo.";
-          throw new Error(`VALIDATION_ERROR:${errCode}:${userMessage}`);
-        }
-
-        if (getPredictionErrorCode(response) === "INTERNAL_ERROR") {
-          const userMessage = response.message || "Server error occurred. Please try again.";
-          throw new Error(`SERVER_ERROR:${userMessage}`);
-        }
-
-        throw new Error(response.error || response.message || "Prediction failed");
-      }
-
-      // Map v2 response to ScanRecord format
-      const label = response.crop && response.disease ? `${response.crop} | ${response.disease}` : response.label || "Unknown";
-      const category = response.is_healthy ? "healthy" : (response.severity || "fungal");
-
-      const result = {
-        label: label,
-        category: category as ScanRecord["category"],
-        confidence: response.confidence ?? 0,
-        class_id: 0, // v2 doesn't provide class_id, using 0
-        top3: response.top3 || [],
-        timestamp: new Date().toISOString(),
-        imageUri: imageUri ?? undefined,
-        // Store additional v2 fields for future use
-        notes: response.summary_en || response.action_en || "",
-      } satisfies ScanRecord;
-
-      console.log("[Scan] Parsed ScanRecord:", result);
-      return result;
     } catch (err: any) {
-      console.error("[Scan] API Call Failed:", {
+      console.error("[Scan] Local ML prediction failed:", {
         name: err?.name,
         message: err?.message,
         stack: err?.stack,
       });
 
-      // Specific error handling
-      if (err?.name === "AbortError") {
-        throw new Error("Request timed out. Check if the PathoNetV1 server is running and accessible.");
-      } else if (err?.message?.includes("Failed to fetch") || err?.message?.includes("Network request failed")) {
-        const isNative = Platform.OS === "ios" || Platform.OS === "android";
-        if (isNative && API_BASE?.includes("localhost")) {
-          throw new Error(
-            `Cannot reach ${API_BASE}. Physical devices cannot access localhost.\n\n` +
-            `To fix this:\n` +
-            `1. Find your PC's local IP (run 'ipconfig' on Windows or 'ifconfig' on Mac/Linux)\n` +
-            `2. Set environment variable: EXPO_PUBLIC_API_URL=http://YOUR_PC_IP:5000\n` +
-            `3. Restart the Expo app\n\n` +
-            `Example: EXPO_PUBLIC_API_URL=http://192.168.1.100:5000`
-          );
-        } else {
-          throw new Error(
-            `Network error. Cannot reach ${API_BASE}.\n\n` +
-            `Ensure:\n` +
-            `1. PathoNetV1 server is running on port 5000\n` +
-            `2. Device and PC are on the same WiFi network\n` +
-            `3. API URL is correct\n` +
-            `4. Firewall allows connections on port 5000\n` +
-            `5. For physical devices, use PC's local IP, not localhost`
-          );
-        }
-      }
-
-      throw err;
+      // For local ML, we don't need complex network error handling
+      throw new Error(`Local ML prediction failed: ${err?.message || 'Unknown error'}`);
     }
   }, [userId, sessionId, imageUri]);
+
+  // Helper function to convert base64 to image element (React Native)
+  const base64ToImageElement = async (base64: string): Promise<any> => {
+    // For React Native, we'll create a mock image object with basic properties
+    return new Promise((resolve) => {
+      // Extract image dimensions from base64 (simplified)
+      const mockImage = {
+        width: 224, // Standard ML input size
+        height: 224,
+        uri: base64
+      };
+      resolve(mockImage);
+    });
+  };
 
   // ── Image-picker helpers ──────────────────────────────────────────────────
   const handleAsset = useCallback((asset: ImagePicker.ImagePickerAsset) => {
