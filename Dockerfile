@@ -30,15 +30,15 @@ COPY AppDev-PathoNet/ .
 RUN mkdir -p models
 
 # Expose port (Render uses 10000, local uses 5000)
-EXPOSE 10000
+EXPOSE 5000
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV PORT=10000
+ENV PORT=5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:10000/health/v2', timeout=5)" || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health/v2', timeout=5)" || exit 1
 
-# Run the app with gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--workers", "1", "--threads", "8", "--timeout", "120", "app.components.PathoNetV1:app"]
+# Run the Flask app directly for simpler deployment
+CMD ["python", "AppDev-PathoNet/run_api_server.py"]
