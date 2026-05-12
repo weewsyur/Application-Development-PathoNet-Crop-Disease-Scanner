@@ -11,11 +11,18 @@ import { Platform } from "react-native";
 import * as Font from 'expo-font';
 import ErrorBoundary from './_error-boundary';
 import LoadingFallback from './_loading-fallback';
+import { useMobileDetector } from './_mobile-detector';
+import { useMobileViewport } from './_mobile-viewport';
+import MobileContainer from './_mobile-container';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const router = useRouter();
   const authInitializedRef = useRef(false);
+  const { isMobile, screenSize } = useMobileDetector();
+
+  // Initialize mobile viewport
+  useMobileViewport();
 
   // Load fonts for web - using CDN approach
   const [fontsLoaded] = useFonts({
@@ -83,11 +90,13 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-        }}
-      />
+      <MobileContainer>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+          }}
+        />
+      </MobileContainer>
     </ErrorBoundary>
   );
 }
