@@ -8,7 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import SVGIcon from "./components/SVGIcon";
+import { Ionicons } from "@expo/vector-icons";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -110,7 +110,7 @@ export default function ProfileScreen() {
           style={styles.backButton}
           activeOpacity={0.7}
         >
-          <SVGIcon name="chevron-back" size={28} color={COLORS.white} />
+          <Ionicons name="chevron-back" size={28} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
         <View style={styles.backButtonPlaceholder} />
@@ -134,7 +134,7 @@ export default function ProfileScreen() {
         {/* Info Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <SVGIcon name="person-outline" size={20} color={COLORS.primary} />
+            <Ionicons name="person-outline" size={20} color={COLORS.primary} />
             <Text style={styles.cardTitle}>Account Information</Text>
           </View>
           <View style={styles.cardContent}>
@@ -153,7 +153,7 @@ export default function ProfileScreen() {
         {/* App Info Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <SVGIcon
+            <Ionicons
               name="information-outline"
               size={20}
               color={COLORS.primary}
@@ -180,7 +180,7 @@ export default function ProfileScreen() {
           disabled={loading}
           activeOpacity={0.7}
         >
-          <SVGIcon name="log-out-outline" size={20} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
           <Text style={styles.signOutText}>
             {loading ? "Signing Out..." : "Sign Out"}
           </Text>

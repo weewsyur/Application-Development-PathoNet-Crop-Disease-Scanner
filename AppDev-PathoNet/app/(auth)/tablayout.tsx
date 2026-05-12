@@ -82,8 +82,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderTopColor: COLORS.border,
     borderTopWidth: 1,
-    height: Platform.OS === "ios" ? 85 : 65,
-    paddingBottom: Platform.OS === "ios" ? 20 : 8,
+    height: 65, // Unified height for all platforms
+    paddingBottom: 8, // Unified padding for all platforms
     paddingTop: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },

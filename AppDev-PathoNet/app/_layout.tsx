@@ -11,18 +11,11 @@ import { Platform } from "react-native";
 import * as Font from 'expo-font';
 import ErrorBoundary from './_error-boundary';
 import LoadingFallback from './_loading-fallback';
-import { useMobileDetector } from './_mobile-detector';
-import { useMobileViewport } from './_mobile-viewport';
-import MobileContainer from './_mobile-container';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const router = useRouter();
   const authInitializedRef = useRef(false);
-  const { isMobile, screenSize } = useMobileDetector();
-
-  // Initialize mobile viewport
-  useMobileViewport();
 
   // Load fonts for web - using CDN approach
   const [fontsLoaded] = useFonts({
@@ -71,34 +64,30 @@ export default function RootLayout() {
   // Don't render until fonts are loaded and auth is checked
   // Add timeout to prevent infinite loading on different devices
   const [loadingTimeout, setLoadingTimeout] = useState(false);
-  const [loadingStage, setLoadingStage] = useState('Initializing...');
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!isReady) {
         console.warn('[RootLayout] Loading timeout - forcing render');
         setLoadingTimeout(true);
-        setLoadingStage('Taking longer than expected...');
       }
-    }, 8000); // 8 second timeout for better UX
+    }, 5000); // 5 second timeout
 
     return () => clearTimeout(timer);
   }, [isReady]);
 
-  const shouldWait = Platform.OS !== 'web' ? !fontsLoaded : true;
-  if ((shouldWait || !isReady) && !loadingTimeout) {
-    return <LoadingFallback message={loadingStage} />;
+  // Remove mobile-only restrictions - work on all devices
+  if (!isReady && !loadingTimeout) {
+    return <LoadingFallback message="Preparing app..." />;
   }
 
   return (
     <ErrorBoundary>
-      <MobileContainer>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        />
-      </MobileContainer>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      />
     </ErrorBoundary>
   );
 }
