@@ -1,0 +1,14 @@
+services:
+  # PathoNet API Service
+  - type: web
+    name: pathonet-api
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app.components.PathoNetV1:app"
+    healthCheckPath: "/health/v2"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.19
+      - key: PORT
+        value: 10000
