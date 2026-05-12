@@ -1,0 +1,11 @@
+{
+  "name": "pathonet-api",
+  "version": "1.0.0",
+  "main": "index.py",
+  "dependencies": {
+    "firebase-functions": "^4.5.0"
+  },
+  "engines": {
+    "node": "18"
+  }
+}
