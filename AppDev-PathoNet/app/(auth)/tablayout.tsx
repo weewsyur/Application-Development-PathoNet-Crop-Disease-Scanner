@@ -1,42 +1,40 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Home, Scan, BarChart3, Clock, Leaf, Bug } from "lucide-react";
 import { StyleSheet, View, Platform } from "react-native";
 import { COLORS } from "@/constants/theme";
-
-type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
 interface TabConfig {
   name: string;
   title: string;
-  icon: IoniconName;
-  activeIcon: IoniconName;
+  icon: React.ReactNode;
+  activeIcon: React.ReactNode;
 }
 
 const TABS: TabConfig[] = [
   {
     name: "Home",
     title: "Home",
-    icon: "home-outline",
-    activeIcon: "home",
+    icon: <Home size={24} />,
+    activeIcon: <Home size={24} />,
   },
   {
     name: "Scan",
     title: "Scan",
-    icon: "scan-outline",
-    activeIcon: "scan",
+    icon: <Scan size={24} />,
+    activeIcon: <Scan size={24} />,
   },
   {
     name: "Analytics",
     title: "Analytics",
-    icon: "bar-chart-outline",
-    activeIcon: "bar-chart",
+    icon: <BarChart3 size={24} />,
+    activeIcon: <BarChart3 size={24} />,
   },
   {
     name: "History",
     title: "History",
-    icon: "time-outline",
-    activeIcon: "time",
+    icon: <Clock size={24} />,
+    activeIcon: <Clock size={24} />,
   },
 ];
 
@@ -60,11 +58,7 @@ export const TabLayout: React.FC = () => {
             title: tab.title,
             tabBarIcon: ({ focused, color }) => (
               <View style={styles.iconWrapper}>
-                <Ionicons
-                  name={focused ? tab.activeIcon : tab.icon}
-                  size={24}
-                  color={color}
-                />
+                {focused ? tab.activeIcon : tab.icon}
                 {focused && <View style={styles.activeDot} />}
               </View>
             ),

@@ -516,6 +516,12 @@ export default function SignUp() {
         setError("❌ Please enter a valid email address.");
       } else if (errorCode === "auth/operation-not-allowed") {
         setError("❌ Email/password signup is disabled. Contact support.");
+      } else if (errorCode === "auth/network-request-failed") {
+        setError("❌ Network error. Please check your connection and try again.");
+      } else if (errorCode === "auth/too-many-requests") {
+        setError("❌ Too many failed attempts. Please try again later.");
+      } else if (errorCode === "auth/user-disabled") {
+        setError("❌ This account has been disabled. Contact support.");
       } else {
         setError("❌ Signup failed: " + (e.message || "Please try again."));
       }

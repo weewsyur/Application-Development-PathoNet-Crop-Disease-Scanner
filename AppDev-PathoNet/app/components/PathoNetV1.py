@@ -1767,7 +1767,7 @@ def run_flask_server_v2(
         return
 
     app      = Flask(__name__)
-    CORS(app)
+    CORS(app, origins=["https://appdev---pathonet.web.app", "http://localhost:3000", "http://localhost:8081"], supports_credentials=True)
     pipeline = InferencePipeline(weights_path=weights_path, backbone=backbone)
 
     # ── Optional: boot legacy server on same app ───────────────────────────

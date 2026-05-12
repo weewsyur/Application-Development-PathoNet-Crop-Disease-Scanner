@@ -8,7 +8,6 @@ import { initializeAsyncStorage } from "@/lib/storage";
 import { useFonts } from "expo-font";
 import { logEnvironmentInfo, logError } from "@/lib/debug";
 import { Platform } from "react-native";
-import * as Font from 'expo-font';
 import ErrorBoundary from './_error-boundary';
 import LoadingFallback from './_loading-fallback';
 
@@ -17,24 +16,7 @@ export default function RootLayout() {
   const router = useRouter();
   const authInitializedRef = useRef(false);
 
-  // Load fonts for web - using CDN approach with fallback
-  const [fontsLoaded] = useFonts({
-    // Load Ionicons from CDN for web
-    Ionicons: "https://cdn.jsdelivr.net/npm/@expo/vector-icons@13.0.0/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf",
-    // Load MaterialIcons from CDN for web
-    MaterialIcons: "https://cdn.jsdelivr.net/npm/@expo/vector-icons@13.0.0/build/vendor/react-native-vector-icons/Fonts/MaterialIcons.ttf",
-    // Load MaterialCommunityIcons from CDN for web
-    MaterialCommunityIcons: "https://cdn.jsdelivr.net/npm/@expo/vector-icons@13.0.0/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf",
-  });
-
-  // Log font loading status for debugging
-  useEffect(() => {
-    if (fontsLoaded) {
-      console.log('[Layout] Icon fonts loaded successfully');
-    } else {
-      console.warn('[Layout] Icon fonts still loading...');
-    }
-  }, [fontsLoaded]);
+  // No font loading needed - using SVG icons
 
   useEffect(() => {
     // Log environment info for debugging

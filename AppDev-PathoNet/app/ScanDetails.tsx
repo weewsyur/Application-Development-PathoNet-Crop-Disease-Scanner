@@ -8,7 +8,7 @@ import {
   Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { ArrowLeft, Calendar, MapPin, Activity, TrendingUp, AlertTriangle, CheckCircle, Image as ImageIcon } from "lucide-react";
 import { COLORS, SIZES } from "@/constants/theme";
 import AppHeader from "@/components/AppHeader";
 import {
@@ -87,7 +87,15 @@ const CategoryIcon = ({
         { width: size, height: size, backgroundColor: colors.bg },
       ]}
     >
-      <Ionicons name={iconName} size={size / 2} color={colors.text} />
+      {iconName === 'checkmark-circle' ? (
+        <CheckCircle size={size / 2} color={colors.text} />
+      ) : iconName === 'warning' ? (
+        <AlertTriangle size={size / 2} color={colors.text} />
+      ) : iconName === 'trending-up' ? (
+        <TrendingUp size={size / 2} color={colors.text} />
+      ) : (
+        <Activity size={size / 2} color={colors.text} />
+      )}
     </View>
   );
 };
@@ -135,7 +143,7 @@ export default function ScanDetailsScreen() {
           style={styles.backButton}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-back" size={28} color={COLORS.white} />
+          <ArrowLeft size={28} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scan Details</Text>
         <View style={styles.backButtonPlaceholder} />
@@ -152,8 +160,7 @@ export default function ScanDetailsScreen() {
             <Image source={{ uri: record.imageUri }} style={styles.image} />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Ionicons
-                name="image-outline"
+              <ImageIcon as any
                 size={64}
                 color={COLORS.textLight}
               />
@@ -265,8 +272,7 @@ export default function ScanDetailsScreen() {
           <View style={styles.card}>
             <View style={styles.dateTimeRow}>
               <View style={styles.dateTimeItem}>
-                <Ionicons
-                  name="calendar-outline"
+                <Calendar
                   size={18}
                   color={COLORS.textMid}
                 />
@@ -278,8 +284,7 @@ export default function ScanDetailsScreen() {
             <View style={styles.divider} />
             <View style={styles.dateTimeRow}>
               <View style={styles.dateTimeItem}>
-                <Ionicons
-                  name="time-outline"
+                <Clock
                   size={18}
                   color={COLORS.textMid}
                 />

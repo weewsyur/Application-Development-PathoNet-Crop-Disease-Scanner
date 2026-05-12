@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Clock, Trash2, Search } from "lucide-react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import AppHeader from "@/components/AppHeader";
@@ -317,11 +317,9 @@ export default function HistoryScreen() {
                     <Text style={styles.diseaseName}>{item.label}</Text>
                     {!!item.notes?.trim() && (
                       <View style={styles.obsNoteRow}>
-                        <Ionicons
-                          name="document-text-outline"
+                        <Search
                           size={12}
                           color={COLORS.textLight}
-                          style={styles.obsNoteIcon}
                         />
                         <Text
                           style={styles.obsNoteText}

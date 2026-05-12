@@ -16,7 +16,7 @@ import {
   Platform,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import { TrendingUp, Activity, BarChart3, PieChart, Filter, Download, RefreshCw, Clock } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { COLORS, SIZES } from "@/constants/theme";
 import { CATEGORY_COLOR } from "@/constants/categoryColors";
@@ -324,7 +324,7 @@ export default function AnalyticsScreen() {
                       { backgroundColor: s.color + "1A" },
                     ])}
                   >
-                    <Ionicons name={s.icon} size={22} color={s.color} />
+                    <TrendingUp size={22} color={s.color} />
                   </View>
                   <Text style={styles.statValue}>{s.value}</Text>
                   <Text style={styles.statLabel}>{s.label}</Text>
@@ -368,8 +368,7 @@ export default function AnalyticsScreen() {
                 ))
               ) : (
                 <View style={styles.emptyWrap}>
-                  <Ionicons
-                    name="bar-chart-outline"
+                  <BarChart3
                     size={36}
                     color={COLORS.textLight}
                   />
@@ -455,7 +454,7 @@ export default function AnalyticsScreen() {
                   style={styles.clearBtn}
                   onPress={clearHistory}
                 >
-                  <Ionicons name="trash-outline" size={14} color="#ef4444" />
+                  <Download size={14} color="#ef4444" />
                   <Text style={styles.clearBtnText}>Clear All</Text>
                 </TouchableOpacity>
 
@@ -484,8 +483,7 @@ export default function AnalyticsScreen() {
                             {record.scanName ?? record.label}
                           </Text>
                           <View style={styles.historyBadgeRow}>
-                            <Ionicons
-                              name={severityIcon}
+                            <Activity
                               size={16}
                               color={color}
                               style={styles.severityIcon}
@@ -518,8 +516,7 @@ export default function AnalyticsScreen() {
 
                         {!!record.notes?.trim() && (
                           <View style={styles.obsNoteRow}>
-                            <Ionicons
-                              name="document-text-outline"
+                            <Filter
                               size={12}
                               color={COLORS.textLight}
                               style={styles.obsNoteIcon}
@@ -563,8 +560,7 @@ export default function AnalyticsScreen() {
               </>
             ) : (
               <View style={styles.emptyWrap}>
-                <Ionicons
-                  name="time-outline"
+                <Clock
                   size={48}
                   color={COLORS.textLight}
                 />

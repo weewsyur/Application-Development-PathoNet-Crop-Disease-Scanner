@@ -19,7 +19,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Camera, Images, Leaf, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import ScanAlertBanner from "@/components/ScanAlertBanner";
 import { COLORS } from "@/constants/theme";
@@ -614,16 +614,9 @@ export default function ScanScreen() {
             },
           ]}
         >
-          <Ionicons
-            name={
-              pendingResult.category === "healthy"
-                ? "checkmark-circle"
-                : "warning"
-            }
-            size={22}
-            color={
-              CATEGORY_META[pendingResult.category]?.color ?? "#22c55e"
-            }
+          <CheckCircle
+            size={24}
+            color={pendingResult.category === "healthy" ? COLORS.success : COLORS.warning}
           />
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={styles.bannerLabel}>
@@ -710,7 +703,7 @@ export default function ScanScreen() {
       {/* Server health indicator */}
       {serverHealth === "offline" && (
         <View style={styles.serverOfflineBanner}>
-          <Ionicons name="warning" size={20} color="#ef4444" />
+          <AlertTriangle size={20} color="#ef4444" />
           <Text style={styles.serverOfflineText}>
             Server offline at {API_BASE}. Check if PathoNetV1 server is running.
           </Text>
@@ -743,7 +736,7 @@ export default function ScanScreen() {
             </>
           ) : (
             <View style={styles.previewPlaceholder}>
-              <Ionicons name="leaf-outline" size={52} color={COLORS.primary} />
+              <Leaf size={52} color={COLORS.primary} />
               <Text style={styles.placeholderTitle}>No image selected</Text>
               <Text style={styles.placeholderSub}>
                 Take a photo or pick from gallery
@@ -760,7 +753,7 @@ export default function ScanScreen() {
               onPress={takePhoto}
               activeOpacity={0.85}
             >
-              <Ionicons name="camera" size={22} color="#fff" />
+              <Camera size={22} color="#fff" />
               <Text style={styles.actionBtnTextWhite}>Camera</Text>
             </TouchableOpacity>
 
@@ -769,7 +762,7 @@ export default function ScanScreen() {
               onPress={pickFromGallery}
               activeOpacity={0.85}
             >
-              <Ionicons name="images" size={22} color={COLORS.primary} />
+              <Images size={22} color={COLORS.primary} />
               <Text
                 style={[styles.actionBtnTextWhite, { color: COLORS.primary }]}
               >
@@ -867,7 +860,7 @@ export default function ScanScreen() {
             ))}
 
             <View style={styles.redirectContainer}>
-              <Ionicons name="checkmark-circle" size={14} color="#6b7280" />
+              <CheckCircle size={14} color="#6b7280" />
               <Text style={styles.redirectText}>
                 Saved — redirecting to Analytics…
               </Text>
@@ -878,7 +871,7 @@ export default function ScanScreen() {
         {/* ── Scan another ── */}
         {result && (
           <TouchableOpacity style={styles.resetBtn} onPress={reset}>
-            <Ionicons name="refresh" size={18} color="#374151" />
+            <RefreshCw size={18} color="#374151" />
             <Text style={styles.resetBtnText}>Scan Another Plant</Text>
           </TouchableOpacity>
         )}

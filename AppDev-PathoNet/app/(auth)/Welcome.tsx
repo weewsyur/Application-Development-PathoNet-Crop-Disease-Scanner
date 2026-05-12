@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import { Link } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Leaf, ArrowRight } from "lucide-react";
 import { COLORS, SIZES } from "@/constants/theme";
 
 function LeafShape({ style }: { style: any }) {
@@ -49,7 +49,7 @@ function WelcomeScreen() {
       <View style={styles.welcomeContent}>
         {/* Logo placeholder */}
         <View style={styles.logoContainer}>
-          <Ionicons name="leaf" size={64} color={COLORS.primary} />
+          <Leaf size={64} color={COLORS.primary} />
         </View>
 
         {/* Title and subtitle */}

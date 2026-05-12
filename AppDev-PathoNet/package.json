@@ -29,7 +29,6 @@
     "deploy:functions": "firebase deploy --only functions"
   },
   "dependencies": {
-    "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
@@ -50,6 +49,7 @@
     "expo-web-browser": "~55.0.15",
     "feather-icons": "^4.29.2",
     "firebase": "^12.13.0",
+    "lucide-react": "^1.14.0",
     "nativewind": "^4.2.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
