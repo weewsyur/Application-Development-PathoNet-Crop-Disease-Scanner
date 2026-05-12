@@ -109,7 +109,7 @@ const AnalyticsSummary = React.memo(function AnalyticsSummary({ total, healthy, 
       {stats.map((stat, index) => (
         <View key={index} style={summaryStyles.card}>
           <View style={[summaryStyles.iconWrapper, { backgroundColor: stat.color + "15" }]}>
-            <TrendingUp size={20} color={stat.color} />
+            {stat.icon}
           </View>
           <Text style={summaryStyles.value}>{stat.value}</Text>
           <Text style={summaryStyles.label}>{stat.label}</Text>

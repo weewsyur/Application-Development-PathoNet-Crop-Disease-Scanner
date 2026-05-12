@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     height: 65, // Unified height for all platforms
     paddingBottom: 8, // Unified padding for all platforms
     paddingTop: 8,
-    shadowColor: "#000",
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
