@@ -17,7 +17,7 @@ export default function RootLayout() {
   const router = useRouter();
   const authInitializedRef = useRef(false);
 
-  // Load fonts for web - using CDN approach
+  // Load fonts for web - using CDN approach with fallback
   const [fontsLoaded] = useFonts({
     // Load Ionicons from CDN for web
     Ionicons: "https://cdn.jsdelivr.net/npm/@expo/vector-icons@13.0.0/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf",
@@ -26,6 +26,15 @@ export default function RootLayout() {
     // Load MaterialCommunityIcons from CDN for web
     MaterialCommunityIcons: "https://cdn.jsdelivr.net/npm/@expo/vector-icons@13.0.0/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf",
   });
+
+  // Log font loading status for debugging
+  useEffect(() => {
+    if (fontsLoaded) {
+      console.log('[Layout] Icon fonts loaded successfully');
+    } else {
+      console.warn('[Layout] Icon fonts still loading...');
+    }
+  }, [fontsLoaded]);
 
   useEffect(() => {
     // Log environment info for debugging
