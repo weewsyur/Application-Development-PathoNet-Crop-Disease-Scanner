@@ -7,20 +7,9 @@
       "config": {
         "distDir": "dist"
       }
-    },
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "runtime": "python3.9"
-      }
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
-    },
     {
       "src": "/_expo/(.*)",
       "dest": "/_expo/$1"
@@ -35,8 +24,6 @@
     }
   ],
   "env": {
-    "EXPO_PUBLIC_PRODUCTION_API_URL": "/api",
-    "PYTHON_VERSION": "3.9",
     "NODE_ENV": "production"
   }
 }
