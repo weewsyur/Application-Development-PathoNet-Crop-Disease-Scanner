@@ -56,9 +56,14 @@ export default function ProfileScreen() {
   // ── Auth state listener ────────────────────────────────────────────────────────
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("[Profile] Auth state changed:", user ? `User: ${user.email}` : 'No user');
+
       if (user) {
         fetchUserName(user.uid);
       } else {
+        // Clear local state when user signs out
+        setUserName("");
+        setUserEmail("");
         // Redirect to welcome if not authenticated
         router.replace("/(auth)/Welcome");
       }
@@ -75,24 +80,30 @@ export default function ProfileScreen() {
         style: "destructive",
         onPress: async () => {
           try {
+            console.log("[Profile] Starting sign out process...");
             setLoading(true);
 
             // Sign out from Firebase (this clears storage internally)
             const result = await signOutUser();
 
+            console.log("[Profile] Sign out result:", result);
+
             if (result.success) {
-              // Clear local state
+              console.log("[Profile] Sign out successful, navigating to welcome");
+
+              // Clear local state immediately
               setUserName("");
               setUserEmail("");
 
               // Navigate to welcome screen
               router.replace("/(auth)/Welcome");
             } else {
+              console.error("[Profile] Sign out failed:", result.message);
               Alert.alert("Error", result.message || "Failed to sign out");
             }
           } catch (error) {
-            console.error("Sign out error:", error);
-            Alert.alert("Error", "Failed to sign out");
+            console.error("[Profile] Sign out error:", error);
+            Alert.alert("Error", "Failed to sign out. Please try again.");
           } finally {
             setLoading(false);
           }
