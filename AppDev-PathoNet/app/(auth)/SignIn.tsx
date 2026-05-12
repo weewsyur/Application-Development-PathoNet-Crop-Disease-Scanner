@@ -174,8 +174,15 @@ export default function SignIn() {
         setError("⏱️ Too many failed attempts. Try again later.");
       } else if (errorCode === "auth/user-disabled") {
         setError("🔒 This account has been disabled. Contact support.");
+      } else if (errorCode === "auth/requires-recent-login") {
+        setError("🔐 This operation requires recent authentication. Please sign in again.");
+      } else if (errorCode && errorCode.includes("recaptcha")) {
+        setError("🤖 reCAPTCHA verification failed. Please try again or check your network connection.");
+      } else if (errorCode === "auth/captcha-check-failed") {
+        setError("🤖 reCAPTCHA verification failed. Please try again.");
       } else {
-        setError("❌ Sign in failed. Please try again.");
+        console.error("[SignIn] Unknown error code:", errorCode);
+        setError(`❌ Sign in failed: ${errorCode || 'Unknown error'}. Please try again.`);
       }
     } finally {
       setIsLoading(false);

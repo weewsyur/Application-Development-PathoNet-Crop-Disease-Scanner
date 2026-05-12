@@ -34,7 +34,16 @@ if (missingConfigKeys.length > 0) {
   try {
     // Initialize Firebase app only once
     firebaseAppInstance = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+    // Configure Auth for web to prevent reCAPTCHA issues
     firebaseAuthInstance = getAuth(firebaseAppInstance);
+
+    // Note: Auth settings are configured in Firebase Console
+    // For web development, ensure:
+    // 1. Email/Password is enabled in Firebase Console
+    // 2. Authorized domains include localhost and your production domain
+    // 3. reCAPTCHA is properly configured
+
     firebaseDBInstance = getFirestore(firebaseAppInstance);
     console.log('[Firebase] Successfully initialized Firebase');
   } catch (error) {

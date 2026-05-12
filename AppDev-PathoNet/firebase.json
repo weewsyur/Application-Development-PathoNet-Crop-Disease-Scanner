@@ -1,5 +1,23 @@
 {
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": "web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  },
+  "auth": {
+    "providers": [
+      {
+        "email": {
+          "enabled": true,
+          "requireDisplayName": false
+        }
+      }
+    ]
   }
 }
