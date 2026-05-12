@@ -8,16 +8,23 @@ import { initializeAsyncStorage } from "@/lib/storage";
 import { useFonts } from "expo-font";
 import { logEnvironmentInfo, logError } from "@/lib/debug";
 import { Platform } from "react-native";
+import * as Font from 'expo-font';
+import ErrorBoundary from './_error-boundary';
+import LoadingFallback from './_loading-fallback';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const router = useRouter();
   const authInitializedRef = useRef(false);
 
-  // Load fonts for web
+  // Load fonts for web - using CDN approach
   const [fontsLoaded] = useFonts({
-    // Expo automatically loads @expo/vector-icons on web
-    // No need to manually load TTF files
+    // Load Ionicons from CDN for web
+    Ionicons: "https://cdn.jsdelivr.net/npm/@expo/vector-icons@13.0.0/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf",
+    // Load MaterialIcons from CDN for web
+    MaterialIcons: "https://cdn.jsdelivr.net/npm/@expo/vector-icons@13.0.0/build/vendor/react-native-vector-icons/Fonts/MaterialIcons.ttf",
+    // Load MaterialCommunityIcons from CDN for web
+    MaterialCommunityIcons: "https://cdn.jsdelivr.net/npm/@expo/vector-icons@13.0.0/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf",
   });
 
   useEffect(() => {
@@ -55,17 +62,32 @@ export default function RootLayout() {
   }, []);
 
   // Don't render until fonts are loaded and auth is checked
-  // For web, allow rendering even if fonts fail to load
+  // Add timeout to prevent infinite loading on different devices
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isReady) {
+        console.warn('[RootLayout] Loading timeout - forcing render');
+        setLoadingTimeout(true);
+      }
+    }, 5000); // 5 second timeout
+
+    return () => clearTimeout(timer);
+  }, [isReady]);
+
   const shouldWait = Platform.OS !== 'web' ? !fontsLoaded : true;
-  if (shouldWait || !isReady) {
-    return null;
+  if ((shouldWait || !isReady) && !loadingTimeout) {
+    return <LoadingFallback message="Preparing app..." />;
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-      }}
-    />
+    <ErrorBoundary>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      />
+    </ErrorBoundary>
   );
 }
