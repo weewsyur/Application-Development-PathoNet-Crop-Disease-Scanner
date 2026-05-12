@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Colors } from './colors';
+import { COLORS as Colors } from './theme';
 
 export const SharedStyles = StyleSheet.create({
   screen: {
@@ -7,13 +7,13 @@ export const SharedStyles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.cardBg,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    shadowColor: Colors.shadow,
+    shadowColor: Colors.textMid,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
   },
@@ -21,7 +21,7 @@ export const SharedStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 1.5,
-    color: Colors.textMuted,
+    color: Colors.textLight,
     textTransform: 'uppercase',
     marginBottom: 12,
   },

@@ -22,7 +22,11 @@
       "dest": "/api/index.py"
     },
     {
-      "src": "/(.*\\.(js|jsx|ts|tsx|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|map|json))",
+      "src": "/_expo/(.*)",
+      "dest": "/_expo/$1"
+    },
+    {
+      "src": "/(.*\\.(js|jsx|ts|tsx|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|map|json|webp|avif))",
       "dest": "/$1"
     },
     {
@@ -32,6 +36,7 @@
   ],
   "env": {
     "EXPO_PUBLIC_PRODUCTION_API_URL": "/api",
-    "PYTHON_VERSION": "3.9"
+    "PYTHON_VERSION": "3.9",
+    "NODE_ENV": "production"
   }
 }

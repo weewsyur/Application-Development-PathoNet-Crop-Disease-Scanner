@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -8,7 +8,7 @@ import { initializeAsyncStorage } from "@/lib/storage";
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
-  const routerRef = useRef<any>(null);
+  const router = useRouter();
   const authInitializedRef = useRef(false);
 
   useEffect(() => {
@@ -26,9 +26,6 @@ export default function RootLayout() {
           if (user && user.emailVerified) {
             // User is signed in and email verified, go to Home
             await AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid);
-            // Use dynamic import to avoid router dependency
-            const { useRouter } = await import("expo-router");
-            const router = useRouter();
             router.replace("/(tabs)/Home");
           }
           // Otherwise, let the user stay on Welcome screen (default route)

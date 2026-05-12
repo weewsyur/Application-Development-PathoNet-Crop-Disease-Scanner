@@ -143,8 +143,6 @@ const ScanAlertBanner = React.memo(function ScanAlertBanner({
     setIsExpanded((e) => !e);
   }, []);
 
-  if (!risk) return null;
-
   const { isHigh, bannerColor, iconName, title, message } = useMemo(() => {
     const isHigh = risk === "high";
     const bannerColor = isHigh ? "#ef4444" : "#f59e0b";
@@ -158,6 +156,8 @@ const ScanAlertBanner = React.memo(function ScanAlertBanner({
 
   const hint = useMemo(() => getCurabilityHint(label, category), [label, category]);
   const radius = SIZES.radius ?? 12;
+
+  if (!risk) return null;
 
   return (
     <View
