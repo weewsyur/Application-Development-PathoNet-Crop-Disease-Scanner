@@ -70,8 +70,12 @@ const ScanAlertBanner = React.memo(function ScanAlertBanner({
   }, []);
 
   useEffect(() => {
-    setNoteText(initialNote);
-  }, [initialNote, timestamp]);
+    // Only reset if the note is empty and we have an initial note
+    // This prevents the input from being reset on every render
+    if (noteText === '' && initialNote !== '') {
+      setNoteText(initialNote);
+    }
+  }, [initialNote, timestamp, noteText]);
 
   const runSuccessAnimation = useCallback(() => {
     successOpacity.setValue(1);
