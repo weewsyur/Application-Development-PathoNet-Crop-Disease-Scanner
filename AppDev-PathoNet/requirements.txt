@@ -1,0 +1,19 @@
+# PathoNet API Server Requirements
+# Python 3.8+ required
+
+# Core ML/AI dependencies
+numpy>=1.24.0
+torch>=2.0.0
+torchvision>=0.15.0
+pillow>=10.0.0
+
+# Flask web server
+Flask>=2.3.0
+flask-cors>=4.0.0
+Werkzeug>=2.3.0
+
+# Image / validation (blur Laplacian uses scipy.ndimage.convolve)
+scipy>=1.10.0
+
+# Optional: TensorFlow (can be removed if not needed)
+# tensorflow>=2.13.0
