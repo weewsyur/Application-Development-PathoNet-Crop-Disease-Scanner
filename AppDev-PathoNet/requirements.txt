@@ -7,10 +7,16 @@ torch>=2.0.0
 torchvision>=0.15.0
 pillow>=10.0.0
 
-# Flask web server
+# Flask web server (legacy)
 Flask>=2.3.0
 flask-cors>=4.0.0
 Werkzeug>=2.3.0
+gunicorn>=21.2.0
+
+# FastAPI web server (modern)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.4.0
 
 # Image / validation (blur Laplacian uses scipy.ndimage.convolve)
 scipy>=1.10.0

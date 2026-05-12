@@ -103,8 +103,10 @@ export function getApiBaseUrl(): string {
 // ─── API Endpoints ─────────────────────────────────────────────────────────────
 
 export const API_ENDPOINTS = {
-  HEALTH: '/health/v2',
+  HEALTH: '/health/v3',
+  HEALTH_V2: '/health/v2',
   HEALTH_LEGACY: '/health',
+  PREDICT_V3: '/predict/v3',
   PREDICT_V2: '/predict/v2',
   VALIDATE: '/validate',
   BENCHMARK: '/benchmark',
@@ -238,7 +240,8 @@ export async function checkApiHealth(baseUrl?: string): Promise<boolean> {
 
 export interface PredictionRequest {
   image: string; // base64
-  use_tta?: boolean;
+  confidence_threshold?: number; // FastAPI v3 uses this instead of use_tta
+  use_tta?: boolean; // Legacy Flask v2 support
   user_id?: string;
   session_id?: string;
 }
@@ -310,7 +313,7 @@ export async function predictImage(
   config?: Partial<ApiConfig>
 ): Promise<PredictionResponse> {
   const finalConfig = { ...DEFAULT_API_CONFIG, ...config };
-  const url = buildUrl(API_ENDPOINTS.PREDICT_V2, finalConfig.baseUrl);
+  const url = buildUrl(API_ENDPOINTS.PREDICT_V3, finalConfig.baseUrl);
 
   const normalized = normalizeImageBase64(request.image);
   if (!normalized) {

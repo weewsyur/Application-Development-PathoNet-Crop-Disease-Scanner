@@ -270,10 +270,10 @@ export default function ScanScreen() {
     }
   }, []);
 
-  // ── Call Flask /predict/v2 (PathoNetV1.py v2 endpoint) ─────────────────────
+  // ── Call FastAPI /predict/v3 (PathoNetFastAPI.py v3 endpoint) ─────────────────────
   const callCnnApi = useCallback(async (base64Image: string): Promise<ScanRecord> => {
     console.log("[Scan] API Request Details:", {
-      url: `${API_BASE}/predict/v2`,
+      url: `${API_BASE}/predict/v3`,
       platform: Platform.OS,
       hasImage: !!base64Image,
       imageSize: base64Image?.length,
@@ -284,9 +284,7 @@ export default function ScanScreen() {
     try {
       const request: PredictionRequest = {
         image: base64Image,
-        use_tta: false, // Disable TTA for low-end devices to improve speed
-        user_id: userId || "",
-        session_id: sessionId || "",
+        confidence_threshold: 0.5, // FastAPI v3 uses confidence_threshold instead of use_tta
       };
 
       const response: PredictionResponse = await predictImage(request, userId, sessionId);
