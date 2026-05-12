@@ -80,6 +80,11 @@ run_flask_server_v2 = _PATHONET.run_flask_server_v2
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     host = os.getenv("HOST", "0.0.0.0")
+    
+    # Production environment checks
+    if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("VERCEL_ENV"):
+        print("🚀 Production environment detected")
+        host = "0.0.0.0"  # Ensure binding to all interfaces
     pathonet_abs = os.path.abspath(_pathonet_v1_file())
 
     print("=" * 70)
