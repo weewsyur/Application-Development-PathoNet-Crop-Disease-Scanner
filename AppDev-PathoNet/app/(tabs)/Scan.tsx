@@ -659,12 +659,12 @@ export default function ScanScreen() {
     <View style={styles.container}>
       <AppHeader />
 
-      {/* Server health indicator */}
-      {serverHealth === "offline" && (
-        <View style={styles.serverOfflineBanner}>
-          <AlertTriangle size={20} color="#ef4444" />
-          <Text style={styles.serverOfflineText}>
-            Server offline at {API_BASE}. Check if PathoNetV1 server is running.
+      {/* Local ML indicator - always healthy */}
+      {serverHealth === "online" && (
+        <View style={styles.localMLBanner}>
+          <CheckCircle size={20} color="#22c55e" />
+          <Text style={styles.localMLText}>
+            Local ML ready - instant predictions
           </Text>
         </View>
       )}
@@ -899,23 +899,23 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 48 },
 
-  // Server offline banner
-  serverOfflineBanner: {
+  // Local ML banner
+  localMLBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fef2f2",
+    backgroundColor: "#f0fdf4",
     padding: 12,
     marginHorizontal: 16,
     marginBottom: 12,
     borderRadius: 12,
     gap: 10,
     borderWidth: 1,
-    borderColor: "#fecaca",
+    borderColor: "#bbf7d0",
   },
-  serverOfflineText: {
+  localMLText: {
     flex: 1,
     fontSize: 13,
-    color: "#dc2626",
+    color: "#16a34a",
     fontWeight: "500",
   },
 
