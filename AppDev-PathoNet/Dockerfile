@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.9-slim
 
 # Set working directory
 WORKDIR /app
@@ -19,15 +19,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p models
 
 # Expose port
-EXPOSE 5000
+EXPOSE 10000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health/v2', timeout=5)" || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:10000/health/v2', timeout=5)" || exit 1
 
 # Set environment variable for production
-ENV PORT=5000
+ENV PORT=10000
 ENV PYTHONUNBUFFERED=1
 
-# Run the Flask server
-CMD ["python", "run_api_server.py"]
+# Run the app with gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--workers", "1", "--threads", "8", "--timeout", "120", "app.components.PathoNetV1:app"]
