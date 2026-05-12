@@ -120,7 +120,7 @@ export default function ScanScreen() {
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    // Initialize local ML client instead of checking server health
+    // Initialize local ML client - no API health check needed
     const initLocalML = async () => {
       try {
         await pathoNetSimpleClient.loadModel();
@@ -429,7 +429,7 @@ export default function ScanScreen() {
 
     try {
       setLoading(true);
-      console.log("[Scan] Starting scan with API:", API_BASE);
+      console.log("[Scan] Starting scan with local ML");
       console.log("[Scan] Image info:", { hasUri: !!imageUri, b64Length: imageB64?.length });
 
       const record = await callCnnApi(imageB64);
