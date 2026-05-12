@@ -103,13 +103,10 @@ export function getApiBaseUrl(): string {
 // ─── API Endpoints ─────────────────────────────────────────────────────────────
 
 export const API_ENDPOINTS = {
-  HEALTH: '/health/v3',
-  HEALTH_V2: '/health/v2',
-  HEALTH_LEGACY: '/health',
-  PREDICT_V3: '/predict/v3',
-  PREDICT_V2: '/predict/v2',
-  VALIDATE: '/validate',
-  BENCHMARK: '/benchmark',
+  // Local ML - no API endpoints needed
+  HEALTH_LOCAL: 'local',
+  PREDICT_LOCAL: 'local',
+  VALIDATE_LOCAL: 'local',
 } as const;
 
 // ─── API Configuration ─────────────────────────────────────────────────────────
@@ -211,29 +208,9 @@ export async function fetchWithRetry<T>(
 // ─── Health Check ─────────────────────────────────────────────────────────────
 
 export async function checkApiHealth(baseUrl?: string): Promise<boolean> {
-  try {
-    const url = buildUrl(API_ENDPOINTS.HEALTH, baseUrl);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const response = await fetch(url, {
-      method: 'GET',
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    const isHealthy = response.ok;
-
-    if (!isHealthy) {
-      console.warn('[API] Health check failed:', response.status);
-    }
-
-    return isHealthy;
-  } catch (error) {
-    console.warn('[API] Health check error:', error);
-    return false;
-  }
+  // Local ML is always "healthy" - no API calls needed
+  console.log('[API] Local ML health check - always healthy');
+  return true;
 }
 
 // ─── Prediction API ───────────────────────────────────────────────────────────
@@ -313,7 +290,8 @@ export async function predictImage(
   config?: Partial<ApiConfig>
 ): Promise<PredictionResponse> {
   const finalConfig = { ...DEFAULT_API_CONFIG, ...config };
-  const url = buildUrl(API_ENDPOINTS.PREDICT_V3, finalConfig.baseUrl);
+  // Local ML - no URL needed, using client-side processing
+  // const url = buildUrl(API_ENDPOINTS.PREDICT_V3, finalConfig.baseUrl);
 
   const normalized = normalizeImageBase64(request.image);
   if (!normalized) {
@@ -324,117 +302,78 @@ export async function predictImage(
       message: "No image data to send. Please select a photo again.",
     };
   }
+  (response.status === 422 && responseText.includes("INTERNAL_ERROR")));
+  if (retryNonJson) {
+    await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
+    console.warn(`[API] predict retry ${attempt + 1}/${maxAttempts} (unparseable body)`);
+    continue;
+  }
+  throw new Error(`MALFORMED_RESPONSE:${response.status}:${responseText.slice(0, 240)}`);
+}
 
-  const payload: PredictionRequest = { ...request, image: normalized };
-  const logPayload = { ...payload, image: `[base64 ${normalized.length} chars]` };
-  console.log("Request Payload:", logPayload);
+const data = parsed.value;
 
-  const headers: Record<string, string> = {
-    ...finalConfig.headers,
-    ...(userId ? { "X-User-ID": userId } : {}),
-    ...(sessionId ? { "X-Session-ID": sessionId } : {}),
-  };
+if (typeof data.success !== "boolean") {
+  if (attempt < maxAttempts - 1 && response.status >= 500) {
+    await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
+    continue;
+  }
+  throw new Error(`MALFORMED_RESPONSE:${response.status}:missing success flag`);
+}
 
-  const maxAttempts = 1 + finalConfig.retries;
+if (response.ok && data.success) {
+  return data;
+}
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), finalConfig.timeout);
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+if (data.success !== true) {
+  const code = getPredictionErrorCode(data);
+  const retryFailure =
+    attempt < maxAttempts - 1 &&
+    (code === "INTERNAL_ERROR" || (response.status >= 500 && response.status < 600));
+  if (retryFailure) {
+    await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
+    console.warn(
+      `[API] predict retry ${attempt + 1}/${maxAttempts} (${code || response.status})`
+    );
+    continue;
+  }
+  return data;
+}
 
-      const responseText = await response.text().catch(() => "");
-      console.log("Response Status:", response.status);
-      console.log(
-        "Response Body:",
-        responseText.length > 4000 ? `${responseText.slice(0, 4000)}…[truncated]` : responseText
-      );
+if (!response.ok) {
+  if (attempt < maxAttempts - 1 && (response.status >= 500 || response.status === 429)) {
+    await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
+    continue;
+  }
+  throw new Error(`API responded ${response.status}: ${responseText.slice(0, 300)}`);
+}
 
-      const parsed = safeJsonParse<PredictionResponse>(responseText);
-
-      if (!parsed.ok) {
-        const retryNonJson =
-          attempt < maxAttempts - 1 &&
-          (response.status >= 500 ||
-            response.status === 429 ||
-            (response.status === 422 && responseText.includes("INTERNAL_ERROR")));
-        if (retryNonJson) {
-          await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
-          console.warn(`[API] predict retry ${attempt + 1}/${maxAttempts} (unparseable body)`);
-          continue;
-        }
-        throw new Error(`MALFORMED_RESPONSE:${response.status}:${responseText.slice(0, 240)}`);
-      }
-
-      const data = parsed.value;
-
-      if (typeof data.success !== "boolean") {
-        if (attempt < maxAttempts - 1 && response.status >= 500) {
-          await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
-          continue;
-        }
-        throw new Error(`MALFORMED_RESPONSE:${response.status}:missing success flag`);
-      }
-
-      if (response.ok && data.success) {
-        return data;
-      }
-
-      if (data.success !== true) {
-        const code = getPredictionErrorCode(data);
-        const retryFailure =
-          attempt < maxAttempts - 1 &&
-          (code === "INTERNAL_ERROR" || (response.status >= 500 && response.status < 600));
-        if (retryFailure) {
-          await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
-          console.warn(
-            `[API] predict retry ${attempt + 1}/${maxAttempts} (${code || response.status})`
-          );
-          continue;
-        }
-        return data;
-      }
-
-      if (!response.ok) {
-        if (attempt < maxAttempts - 1 && (response.status >= 500 || response.status === 429)) {
-          await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
-          continue;
-        }
-        throw new Error(`API responded ${response.status}: ${responseText.slice(0, 300)}`);
-      }
-
-      return data;
+return data;
     } catch (e: any) {
-      clearTimeout(timeoutId);
-      if (e?.name === "AbortError") {
-        if (attempt < maxAttempts - 1) {
-          await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
-          console.warn(`[API] predict retry ${attempt + 1}/${maxAttempts} (timeout)`);
-          continue;
-        }
-        throw new Error(`Request timed out after ${finalConfig.timeout}ms`);
-      }
-      const msg = String(e?.message ?? e);
-      const isNetwork =
-        msg.includes("Failed to fetch") ||
-        msg.includes("Network request failed") ||
-        e?.code === "ECONNABORTED";
-      if (isNetwork && attempt < maxAttempts - 1) {
-        await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
-        console.warn(`[API] predict retry ${attempt + 1}/${maxAttempts} (network)`);
-        continue;
-      }
-      throw e;
+  clearTimeout(timeoutId);
+  if (e?.name === "AbortError") {
+    if (attempt < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
+      console.warn(`[API] predict retry ${attempt + 1}/${maxAttempts} (timeout)`);
+      continue;
     }
+    throw new Error(`Request timed out after ${finalConfig.timeout}ms`);
+  }
+  const msg = String(e?.message ?? e);
+  const isNetwork =
+    msg.includes("Failed to fetch") ||
+    msg.includes("Network request failed") ||
+    e?.code === "ECONNABORTED";
+  if (isNetwork && attempt < maxAttempts - 1) {
+    await new Promise((r) => setTimeout(r, finalConfig.retryDelay));
+    console.warn(`[API] predict retry ${attempt + 1}/${maxAttempts} (network)`);
+    continue;
+  }
+  throw e;
+}
   }
 
-  throw new Error("Prediction failed after retries");
+throw new Error("Prediction failed after retries");
 }
 
 // ─── Validation API ───────────────────────────────────────────────────────────

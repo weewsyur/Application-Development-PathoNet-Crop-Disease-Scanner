@@ -37,14 +37,9 @@ import { db } from "@/lib/firebase";
 import { STORAGE_KEYS } from "@/lib/storage";
 import {
   checkApiHealth,
-  predictImage,
-  PredictionRequest,
-  PredictionResponse,
   getApiBaseUrl,
   detectEnvironment,
-  isPredictionValidationFailure,
-  getPredictionErrorCode,
-} from "@/services/api";
+} from "@/services/api-local";
 import { pathoNetSimpleClient, type LocalPredictionResult, type LocalScanRecord } from "@/utils/pathonetClientSimple";
 
 const { height } = Dimensions.get("window");
