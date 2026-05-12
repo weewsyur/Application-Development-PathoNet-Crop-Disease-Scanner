@@ -31,20 +31,44 @@ export default function RootLayout() {
     const checkAuthState = async () => {
       await initializeAsyncStorage();
       try {
+        console.log('[RootLayout] Initializing Firebase auth...');
+        
+        // Check Firebase availability first
+        const { isFirebaseAvailable, missingKeys } = require('@/lib/firebase').getFirebaseStatus();
+        
+        if (!isFirebaseAvailable) {
+          console.warn('[RootLayout] Firebase not available, missing keys:', missingKeys);
+          setIsReady(true);
+          return;
+        }
+
         // Listen to Firebase auth state
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
+          console.log('[RootLayout] Auth state changed:', user ? `User: ${user.email}` : 'No user');
+          
           if (user && user.emailVerified) {
             // User is signed in and email verified, go to Home
             await AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid);
             router.replace("/(tabs)/Home");
+          } else {
+            // Otherwise, let's user stay on Welcome screen (default route)
+            setIsReady(true);
           }
-          // Otherwise, let the user stay on Welcome screen (default route)
-          setIsReady(true);
         });
 
-        return unsubscribe;
+        // Set a timeout to prevent infinite loading
+        const authTimeout = setTimeout(() => {
+          console.warn('[RootLayout] Auth initialization timeout - proceeding without auth');
+          setIsReady(true);
+        }, 3000);
+
+        return () => {
+          unsubscribe();
+          clearTimeout(authTimeout);
+        };
       } catch (error) {
         logError(error, "RootLayout auth check");
+        console.error('[RootLayout] Auth check failed:', error);
         setIsReady(true);
       }
     };
