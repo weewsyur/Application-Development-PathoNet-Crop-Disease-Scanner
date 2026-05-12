@@ -44,8 +44,8 @@ export const TabLayout: React.FC = () => {
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMid,
+        tabBarActiveTintColor: "#22c55e",
+        tabBarInactiveTintColor: "#9ca3af",
         tabBarShowLabel: false,
         tabBarItemStyle: styles.tabItem,
       }}

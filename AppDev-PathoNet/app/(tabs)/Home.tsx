@@ -22,7 +22,7 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
-import { Sun, Moon, Leaf, TrendingUp, User } from "lucide-react";
+import { Sun, Moon, Leaf, TrendingUp, User, Scan, Bug, BarChart3 } from "lucide-react";
 import { onAuthStateChanged } from "firebase/auth";
 import { onSnapshot, collection, query, orderBy, limit, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
@@ -98,10 +98,10 @@ interface AnalyticsSummaryProps {
 
 const AnalyticsSummary = React.memo(function AnalyticsSummary({ total, healthy, diseased, avgConfidence }: AnalyticsSummaryProps) {
   const stats = useMemo(() => [
-    { icon: "scan-outline", label: "Total Scans", value: total.toString(), color: "#3b82f6" },
-    { icon: "bug-outline", label: "Diseases Found", value: diseased.toString(), color: "#ef4444" },
-    { icon: "leaf-outline", label: "Healthy Crops", value: healthy.toString(), color: "#22c55e" },
-    { icon: "analytics-outline", label: "Avg Confidence", value: total > 0 ? `${(avgConfidence * 100).toFixed(1)}%` : "—", color: "#f59e0b" },
+    { icon: <Scan size={20} />, label: "Total Scans", value: total.toString(), color: "#3b82f6" },
+    { icon: <Bug size={20} />, label: "Diseases Found", value: diseased.toString(), color: "#ef4444" },
+    { icon: <Leaf size={20} />, label: "Healthy Crops", value: healthy.toString(), color: "#22c55e" },
+    { icon: <BarChart3 size={20} />, label: "Avg Confidence", value: total > 0 ? `${(avgConfidence * 100).toFixed(1)}%` : "—", color: "#f59e0b" },
   ], [total, healthy, diseased, avgConfidence]);
 
   return (
