@@ -57,7 +57,9 @@ export function getApiBaseUrl(): string {
     if (!productionUrl) {
       console.warn('[API] No production API URL configured. Using fallback.');
     }
-    return productionUrl || 'https://api.pathonet.example.com';
+    // For Firebase Hosting, we don't have a separate API server yet
+    // Return the same domain since API is not deployed
+    return productionUrl || 'https://appdev---pathonet.web.app';
   }
 
   // Web development

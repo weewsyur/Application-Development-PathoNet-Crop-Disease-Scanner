@@ -5,13 +5,24 @@ import { auth } from "@/lib/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { STORAGE_KEYS } from "@/lib/storage";
 import { initializeAsyncStorage } from "@/lib/storage";
+import { useFonts } from "expo-font";
+import { logEnvironmentInfo, logError } from "@/lib/debug";
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const router = useRouter();
   const authInitializedRef = useRef(false);
 
+  // Load fonts for web
+  const [fontsLoaded] = useFonts({
+    // Add any custom fonts here if needed
+    // Expo automatically loads system fonts and @expo/vector-icons
+  });
+
   useEffect(() => {
+    // Log environment info for debugging
+    logEnvironmentInfo();
+
     // Prevent multiple auth listener initializations
     if (authInitializedRef.current) {
       return;
@@ -34,13 +45,18 @@ export default function RootLayout() {
 
         return unsubscribe;
       } catch (error) {
-        console.error("[RootLayout] Auth check error:", error);
+        logError(error, "RootLayout auth check");
         setIsReady(true);
       }
     };
 
     checkAuthState();
   }, []);
+
+  // Don't render until fonts are loaded and auth is checked
+  if (!fontsLoaded || !isReady) {
+    return null;
+  }
 
   return (
     <Stack
