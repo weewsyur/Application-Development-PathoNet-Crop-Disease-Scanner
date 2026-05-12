@@ -5,11 +5,22 @@
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "web"
+        "distDir": "dist"
+      }
+    },
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "runtime": "python3.9"
       }
     }
   ],
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.py"
+    },
     {
       "src": "/static/(.*)",
       "headers": {
@@ -22,6 +33,7 @@
     }
   ],
   "env": {
-    "EXPO_PUBLIC_PRODUCTION_API_URL": "@production-api-url"
+    "EXPO_PUBLIC_PRODUCTION_API_URL": "/api",
+    "PYTHON_VERSION": "3.9"
   }
 }

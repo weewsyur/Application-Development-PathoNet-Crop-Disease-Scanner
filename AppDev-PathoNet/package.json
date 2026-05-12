@@ -18,7 +18,8 @@
     "setup:python:bat": "python setup-python-env.bat",
     "setup:python:unix": "bash setup-python-env.sh",
     "server": "python run_api_server.py",
-    "server:check": "curl -s http://localhost:5000/health/v2 || echo 'Server is not running'"
+    "server:check": "curl -s http://localhost:5000/health/v2 || echo 'Server is not running'",
+    "build": "expo export -p web"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
