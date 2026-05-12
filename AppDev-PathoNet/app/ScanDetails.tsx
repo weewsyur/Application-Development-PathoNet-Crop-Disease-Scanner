@@ -8,7 +8,7 @@ import {
   Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Calendar, MapPin, Activity, TrendingUp, AlertTriangle, CheckCircle, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Activity, TrendingUp, AlertTriangle, CheckCircle, Image as ImageIcon, Clock } from "lucide-react";
 import { COLORS, SIZES } from "@/constants/theme";
 import AppHeader from "@/components/AppHeader";
 import {
