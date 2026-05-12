@@ -7,6 +7,7 @@ import { STORAGE_KEYS } from "@/lib/storage";
 import { initializeAsyncStorage } from "@/lib/storage";
 import { useFonts } from "expo-font";
 import { logEnvironmentInfo, logError } from "@/lib/debug";
+import { Platform } from "react-native";
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -15,8 +16,8 @@ export default function RootLayout() {
 
   // Load fonts for web
   const [fontsLoaded] = useFonts({
-    // Add any custom fonts here if needed
-    // Expo automatically loads system fonts and @expo/vector-icons
+    // Expo automatically loads @expo/vector-icons on web
+    // No need to manually load TTF files
   });
 
   useEffect(() => {
@@ -54,7 +55,9 @@ export default function RootLayout() {
   }, []);
 
   // Don't render until fonts are loaded and auth is checked
-  if (!fontsLoaded || !isReady) {
+  // For web, allow rendering even if fonts fail to load
+  const shouldWait = Platform.OS !== 'web' ? !fontsLoaded : true;
+  if (shouldWait || !isReady) {
     return null;
   }
 
