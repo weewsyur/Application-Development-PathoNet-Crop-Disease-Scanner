@@ -22,14 +22,16 @@
       "dest": "/api/index.py"
     },
     {
-      "src": "/static/(.*)",
-      "headers": {
-        "cache-control": "public, max-age=31536000, immutable"
-      }
+      "src": "/_next/(.*)",
+      "dest": "/_next/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|map))",
+      "dest": "/dist/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/dist/index.html"
     }
   ],
   "env": {
