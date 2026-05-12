@@ -71,21 +71,23 @@ export default function RootLayout() {
   // Don't render until fonts are loaded and auth is checked
   // Add timeout to prevent infinite loading on different devices
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [loadingStage, setLoadingStage] = useState('Initializing...');
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!isReady) {
         console.warn('[RootLayout] Loading timeout - forcing render');
         setLoadingTimeout(true);
+        setLoadingStage('Taking longer than expected...');
       }
-    }, 5000); // 5 second timeout
+    }, 8000); // 8 second timeout for better UX
 
     return () => clearTimeout(timer);
   }, [isReady]);
 
   const shouldWait = Platform.OS !== 'web' ? !fontsLoaded : true;
   if ((shouldWait || !isReady) && !loadingTimeout) {
-    return <LoadingFallback message="Preparing app..." />;
+    return <LoadingFallback message={loadingStage} />;
   }
 
   return (

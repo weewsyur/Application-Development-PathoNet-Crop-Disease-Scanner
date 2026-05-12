@@ -22,7 +22,7 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import SVGIcon from "../components/SVGIcon";
 import { onAuthStateChanged } from "firebase/auth";
 import { onSnapshot, collection, query, orderBy, limit, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
@@ -48,10 +48,10 @@ const getTimeOfDay = (): TimeOfDay => {
   return "Evening";
 };
 
-const TIME_ICONS: Record<TimeOfDay, React.ComponentProps<typeof Ionicons>["name"]> = {
-  Morning: "sunny-outline",
-  Afternoon: "partly-sunny-outline",
-  Evening: "moon-outline",
+const TIME_ICONS: Record<TimeOfDay, string> = {
+  Morning: "sunny",
+  Afternoon: "partly-sunny",
+  Evening: "moon",
 };
 
 const TIME_ICON_COLORS: Record<TimeOfDay, string> = {
@@ -109,7 +109,7 @@ const AnalyticsSummary = React.memo(function AnalyticsSummary({ total, healthy, 
       {stats.map((stat, index) => (
         <View key={index} style={summaryStyles.card}>
           <View style={[summaryStyles.iconWrapper, { backgroundColor: stat.color + "15" }]}>
-            <Ionicons name={stat.icon as any} size={20} color={stat.color} />
+            <SVGIcon name={stat.icon} size={20} color={stat.color} />
           </View>
           <Text style={summaryStyles.value}>{stat.value}</Text>
           <Text style={summaryStyles.label}>{stat.label}</Text>
@@ -185,7 +185,7 @@ function ScanFeed({ data, onRefresh, refreshing }: ScanFeedProps) {
 
   const ListEmptyComponent = useCallback(() => (
     <View style={feedCardStyles.emptyState}>
-      <Ionicons name="leaf-outline" size={48} color={COLORS.textLight} />
+      <SVGIcon name="leaf" size={48} color={COLORS.textLight} />
       <Text style={feedCardStyles.emptyText}>No scans yet</Text>
       <Text style={feedCardStyles.emptySubtext}>Start scanning plants to see your feed</Text>
     </View>
@@ -386,7 +386,7 @@ export default function HomeScreen() {
               <View style={styles.greetingTop}>
                 <View style={styles.greetingLeft}>
                   <View style={[styles.iconWrapper, { backgroundColor: iconColor + "1A" }]}>
-                    <Ionicons name={greetIcon} size={22} color={iconColor} />
+                    <SVGIcon name={greetIcon} size={22} color={iconColor} />
                   </View>
                   <View style={styles.greetingText}>
                     <Text style={styles.greetingLabel}>Good {timeOfDay}</Text>
