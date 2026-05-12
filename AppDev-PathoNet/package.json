@@ -42,7 +42,7 @@
     "expo-system-ui": "~55.0.17",
     "expo-web-browser": "~55.0.15",
     "feather-icons": "^4.29.2",
-    "firebase": "^12.12.1",
+    "firebase": "^12.13.0",
     "nativewind": "^4.2.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
