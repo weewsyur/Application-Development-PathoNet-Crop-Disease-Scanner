@@ -639,7 +639,7 @@ export default function ScanScreen() {
                 },
               ]}
             >
-              {(pendingResult.confidence * 100).toFixed(1)}% confidence
+              {`${(pendingResult.confidence * 100).toFixed(1)}% confidence`}
             </Text>
           </View>
         </View>
@@ -820,7 +820,7 @@ export default function ScanScreen() {
                   style={[styles.confBadge, { backgroundColor: meta.color }]}
                 >
                   <Text style={styles.confText}>
-                    {(result.confidence * 100).toFixed(1)}% confident
+                    {`${(result.confidence * 100).toFixed(1)}% confident`}
                   </Text>
                 </View>
               </View>
@@ -861,7 +861,7 @@ export default function ScanScreen() {
                   {item.label}
                 </Text>
                 <Text style={[styles.top3Conf, { color: meta.color }]}>
-                  {((item.confidence || 0) * 100).toFixed(1)}%
+                  {`${((item.confidence || 0) * 100).toFixed(1)}%`}
                 </Text>
               </View>
             ))}

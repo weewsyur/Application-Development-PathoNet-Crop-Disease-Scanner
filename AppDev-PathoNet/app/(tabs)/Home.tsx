@@ -154,7 +154,7 @@ const FeedCard = React.memo(function FeedCard({ item, onPress }: FeedCardProps) 
         <View style={feedCardStyles.footer}>
           <Text style={feedCardStyles.timestamp}>{formatDate(item.timestamp || "")}</Text>
           <Text style={[feedCardStyles.confidence, { color: categoryColor }]}>
-            {Math.round((item.confidence || 0) * 100)}% confidence
+            {`${Math.round((item.confidence || 0) * 100)}% confidence`}
           </Text>
         </View>
       </View>

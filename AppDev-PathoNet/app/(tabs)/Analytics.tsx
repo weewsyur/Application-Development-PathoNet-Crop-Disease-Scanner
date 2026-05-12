@@ -544,7 +544,7 @@ export default function AnalyticsScreen() {
                         <View style={styles.historyFooter}>
                           <View style={styles.confidenceWrap}>
                             <Text style={styles.historyConf}>
-                              {(record.confidence * 100).toFixed(1)}% confident
+                              {`${(record.confidence * 100).toFixed(1)}% confident`}
                             </Text>
                             <Text style={styles.historyConfHint}>
                               ({getConfidenceHint(record.confidence).tagalog})

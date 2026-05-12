@@ -205,7 +205,7 @@ export default function ScanDetailsScreen() {
                 <Text
                   style={[styles.confidencePercent, { color: colors.text }]}
                 >
-                  {confidencePercent}%
+                  {`${confidencePercent}%`}
                 </Text>
                 <Text style={styles.confidenceLabel}>Confident</Text>
                 <Text style={[styles.confidenceTagalog, { color: colors.text }]}>
@@ -217,7 +217,7 @@ export default function ScanDetailsScreen() {
                   style={[
                     styles.progressFill,
                     {
-                      width: `${confidencePercent}%`,
+                      width: `${confidencePercent}%` as any,
                       backgroundColor: colors.text,
                     },
                   ]}

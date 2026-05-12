@@ -343,7 +343,7 @@ export default function HistoryScreen() {
                       </Text>
                       <View style={styles.confidenceWrapper}>
                         <Text style={[styles.confidence, { color: iconColor }]}>
-                          {Math.round((item.confidence || 0) * 100)}% confident
+                          {`${Math.round((item.confidence || 0) * 100)}% confident`}
                         </Text>
                         <Text
                           style={[
