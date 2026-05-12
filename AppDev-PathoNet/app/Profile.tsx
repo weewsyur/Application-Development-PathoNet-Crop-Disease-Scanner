@@ -77,15 +77,7 @@ export default function ProfileScreen() {
           try {
             setLoading(true);
 
-            // Clear all local storage
-            await AsyncStorage.multiRemove([
-              STORAGE_KEYS.PATHONET_UID,
-              STORAGE_KEYS.PATHONET_USER_ID,
-              STORAGE_KEYS.PATHONET_SESSION_ID,
-              STORAGE_KEYS.SCAN_HISTORY,
-            ]);
-
-            // Sign out from Firebase
+            // Sign out from Firebase (this clears storage internally)
             const result = await signOutUser();
 
             if (result.success) {

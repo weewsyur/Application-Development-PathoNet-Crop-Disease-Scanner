@@ -18,6 +18,7 @@ import {
 import { doc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { STORAGE_KEYS } from "./storage";
 
 // ─── Type Definitions ─────────────────────────────────────────────────────
 
@@ -237,8 +238,17 @@ export async function customTokenSignIn(
 export async function signOutUser(): Promise<AuthResponse> {
   try {
     await signOut(auth);
-    await AsyncStorage.removeItem("pathonet_uid");
-    console.log("[Auth] User signed out");
+
+    // Clear all auth-related storage
+    await AsyncStorage.multiRemove([
+      "pathonet_uid",
+      STORAGE_KEYS.PATHONET_UID,
+      STORAGE_KEYS.PATHONET_USER_ID,
+      STORAGE_KEYS.PATHONET_SESSION_ID,
+      STORAGE_KEYS.SCAN_HISTORY,
+    ]);
+
+    console.log("[Auth] User signed out successfully");
     return { success: true, message: "Signed out successfully" };
   } catch (error: any) {
     console.error("[Auth] Sign out error:", error);
