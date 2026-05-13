@@ -32,8 +32,8 @@
     ],
     "rewrites": [
       {
-        "source": "/_expo/(.*)",
-        "destination": "/_expo/$1"
+        "source": "/_expo/static/**",
+        "destination": "/_expo/static/$1"
       },
       {
         "source": "**",
