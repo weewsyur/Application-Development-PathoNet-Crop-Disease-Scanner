@@ -59,23 +59,26 @@ console.log("[Scan] API Configuration:", {
 
 interface ModalContentProps {
   pendingResult: ScanRecord | null;
-  scanName: string;
-  scanDescription: string;
-  setScanName: (value: string) => void;
-  setScanDescription: (value: string) => void;
-  handleSkip: () => void;
-  handleSave: () => void;
+  initialScanName: string;
+  initialScanDescription: string;
+  onSave: (name: string, description: string) => void;
+  onSkip: () => void;
 }
 
 const ModalContent = memo(function ModalContent({
   pendingResult,
-  scanName,
-  scanDescription,
-  setScanName,
-  setScanDescription,
-  handleSkip,
-  handleSave,
+  initialScanName,
+  initialScanDescription,
+  onSave,
+  onSkip,
 }: ModalContentProps) {
+  const [localScanName, setLocalScanName] = useState(initialScanName);
+  const [localScanDescription, setLocalScanDescription] = useState(initialScanDescription);
+
+  const handleSave = () => {
+    onSave(localScanName, localScanDescription);
+  };
+
   return (
     <>
       {/* Detection result summary */}
@@ -128,8 +131,8 @@ const ModalContent = memo(function ModalContent({
           style={styles.textInput}
           placeholder={`e.g., Field A – ${pendingResult?.label ?? "Plant"}`}
           placeholderTextColor={COLORS.textLight}
-          value={scanName}
-          onChangeText={setScanName}
+          value={localScanName}
+          onChangeText={setLocalScanName}
           maxLength={60}
         />
       </View>
@@ -141,15 +144,15 @@ const ModalContent = memo(function ModalContent({
           style={[styles.textInput, styles.textArea]}
           placeholder="Location, plant age, observations…"
           placeholderTextColor={COLORS.textLight}
-          value={scanDescription}
-          onChangeText={setScanDescription}
+          value={localScanDescription}
+          onChangeText={setLocalScanDescription}
           multiline
           numberOfLines={3}
           maxLength={200}
           textAlignVertical="top"
         />
         <Text style={styles.charCount}>
-          {scanDescription.length}/200
+          {localScanDescription.length}/200
         </Text>
       </View>
 
@@ -157,7 +160,7 @@ const ModalContent = memo(function ModalContent({
       <View style={styles.modalActions}>
         <TouchableOpacity
           style={[styles.modalBtn, styles.skipBtn]}
-          onPress={handleSkip}
+          onPress={onSkip}
         >
           <Text style={styles.skipBtnText}>Skip</Text>
         </TouchableOpacity>
@@ -863,12 +866,10 @@ export default function ScanScreen() {
             <View style={styles.modalContent}>
               <ModalContent
                 pendingResult={pendingResult}
-                scanName={scanName}
-                scanDescription={scanDescription}
-                setScanName={setScanName}
-                setScanDescription={setScanDescription}
-                handleSkip={handleSkip}
-                handleSave={handleSave}
+                initialScanName={scanName}
+                initialScanDescription={scanDescription}
+                onSave={commitAndNavigate}
+                onSkip={handleSkip}
               />
             </View>
           </View>
@@ -886,12 +887,10 @@ export default function ScanScreen() {
             <View style={styles.modalContent}>
               <ModalContent
                 pendingResult={pendingResult}
-                scanName={scanName}
-                scanDescription={scanDescription}
-                setScanName={setScanName}
-                setScanDescription={setScanDescription}
-                handleSkip={handleSkip}
-                handleSave={handleSave}
+                initialScanName={scanName}
+                initialScanDescription={scanDescription}
+                onSave={commitAndNavigate}
+                onSkip={handleSkip}
               />
             </View>
           </View>

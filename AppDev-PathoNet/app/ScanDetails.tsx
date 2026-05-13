@@ -8,7 +8,7 @@ import {
   Image,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Calendar, MapPin, Activity, TrendingUp, AlertTriangle, CheckCircle, Image as ImageIcon, Clock } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Activity, TrendingUp, AlertTriangle, CheckCircle, Image as ImageIcon, Clock, Bug } from "lucide-react";
 import { COLORS, SIZES } from "@/constants/theme";
 import AppHeader from "@/components/AppHeader";
 import {
@@ -91,8 +91,8 @@ const CategoryIcon = ({
         <CheckCircle size={size / 2} color={colors.text} />
       ) : iconName === 'warning' ? (
         <AlertTriangle size={size / 2} color={colors.text} />
-      ) : iconName === 'trending-up' ? (
-        <TrendingUp size={size / 2} color={colors.text} />
+      ) : iconName === 'bug' ? (
+        <Bug size={size / 2} color={colors.text} />
       ) : (
         <Activity size={size / 2} color={colors.text} />
       )}
@@ -160,8 +160,7 @@ export default function ScanDetailsScreen() {
             <Image source={{ uri: record.imageUri }} style={styles.image} />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <ImageIcon as any
-                size={64}
+              <ImageIcon size={64}
                 color={COLORS.textLight}
               />
               <Text style={styles.placeholderText}>No image available</Text>
