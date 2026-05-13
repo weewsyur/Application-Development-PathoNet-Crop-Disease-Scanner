@@ -80,7 +80,7 @@ export default function ProfileScreen() {
     }
   };
 
-  // ── Sign out — use centralized logout handler and handle navigation ────────────
+  // ── Sign out — use AuthContext signOut method (handles navigation automatically) ──
   const handleLogoutPress = async () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
@@ -96,17 +96,10 @@ export default function ProfileScreen() {
             setUserName("");
             setUserEmail("");
 
-            // Use centralized logout handler
-            const result = await handleLogout();
+            // Use AuthContext signOut method (handles Firebase sign out, state update, and navigation)
+            await signOut();
 
-            if (result.success) {
-              console.log("[Profile] Sign out successful");
-              // Navigate to Welcome screen and clear navigation stack
-              router.replace("/(auth)/Welcome" as any);
-            } else {
-              console.error("[Profile] Logout handler failed:", result.message);
-              Alert.alert("Error", result.message || "Failed to sign out");
-            }
+            console.log("[Profile] Sign out successful - navigation handled by AuthContext");
           } catch (error) {
             console.error("[Profile] Sign out error:", error);
             Alert.alert("Error", "Failed to sign out. Please try again.");

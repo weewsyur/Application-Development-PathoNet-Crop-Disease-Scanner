@@ -99,18 +99,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Sign out
   const signOut = async () => {
     try {
+      console.log('[AuthContext] Starting sign out...');
+
       // Use the centralized logout handler
       const result = await handleLogout();
 
       if (result.success) {
+        console.log('[AuthContext] Logout handler successful, clearing state...');
+        // Clear auth state - onAuthStateChanged listener will handle navigation
         setUser(null);
         setUserProfile(null);
-        router.replace('/(auth)/Welcome' as any);
       } else {
         console.error('[AuthContext] Logout handler failed:', result.message);
+        throw new Error(result.message);
       }
     } catch (error) {
       console.error('[AuthContext] Error signing out:', error);
+      throw error;
     }
   };
 
@@ -166,6 +171,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         console.log('[AuthContext] User signed out');
+
+        // Navigate to Welcome screen when user signs out (automatic redirect)
+        // Use setTimeout to ensure state updates complete before navigation
+        setTimeout(() => {
+          router.replace('/(auth)/Welcome' as any);
+        }, 100);
       }
 
       setIsLoading(false);

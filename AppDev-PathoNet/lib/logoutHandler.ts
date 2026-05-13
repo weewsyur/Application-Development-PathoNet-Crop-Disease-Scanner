@@ -20,14 +20,24 @@ export interface LogoutResponse {
  * - Clears AsyncStorage
  * - Returns success/failure response
  * 
- * Note: Navigation should be handled by the caller or AuthContext
+ * Note: Navigation should be handled by AuthContext's onAuthStateChanged listener
  */
 export async function handleLogout(): Promise<LogoutResponse> {
   try {
     console.log("[logoutHandler] Starting logout process...");
 
+    // Check if auth is properly configured
+    if (!auth || typeof auth.signOut !== 'function') {
+      console.error("[logoutHandler] Firebase auth not properly configured");
+      return {
+        success: false,
+        message: "Firebase auth not configured. Please check your environment variables.",
+      };
+    }
+
     // Sign out from Firebase
     await firebaseSignOut(auth);
+    console.log("[logoutHandler] Firebase sign out completed");
 
     // Clear all relevant AsyncStorage keys
     await AsyncStorage.multiRemove([
@@ -39,11 +49,17 @@ export async function handleLogout(): Promise<LogoutResponse> {
       "temp_signup_username",
       "temp_signup_uid",
     ]);
+    console.log("[logoutHandler] AsyncStorage cleared");
 
     console.log("[logoutHandler] Logout successful");
     return { success: true, message: "Logged out successfully" };
   } catch (error: any) {
     console.error("[logoutHandler] Logout failed:", error);
+    console.error("[logoutHandler] Error details:", {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
+    });
     return {
       success: false,
       message: error?.message || "Logout failed",
