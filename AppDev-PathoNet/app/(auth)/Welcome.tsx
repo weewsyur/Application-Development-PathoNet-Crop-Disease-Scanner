@@ -62,7 +62,7 @@ function WelcomeScreen() {
         <View style={styles.btnRow}>
           <PillButton
             title="SIGN IN"
-            href="./(auth)/SignIn"
+            href="../(auth)/SignIn"
             variant="primary"
             style={styles.btnFull}
           />

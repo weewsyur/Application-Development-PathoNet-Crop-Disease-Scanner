@@ -391,7 +391,7 @@ function HomeScreenContent() {
 
 export default function HomeScreen() {
   return (
-    <AuthGuard requireAuth={true} requireOtp={true} requireTerms={true}>
+    <AuthGuard requireAuth={true} requireOtp={false} requireTerms={false}>
       <HomeScreenContent />
     </AuthGuard>
   );

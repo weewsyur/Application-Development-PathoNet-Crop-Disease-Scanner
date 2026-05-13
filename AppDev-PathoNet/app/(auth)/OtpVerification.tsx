@@ -19,7 +19,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Mail, ArrowLeft, RefreshCw, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { sendOTPEmail } from '@/services/emailService';
-import { verifyOTP, canRequestOTP, setOTPRequestCooldown, getCooldownRemaining, OTP_CONFIG } from '@/services/otpService';
+import { verifyOTP, canRequestOTP, setOTPRequestCooldown, getCooldownRemaining, OTP_CONFIG, generateOTP, storeOTPData } from '@/services/otpService';
 import { maskEmail, formatTimeRemaining, generateOTPInputRefs, focusNextOTPInput, focusPreviousOTPInput, getOTPFromInputs, clearOTPInputs, isOTPComplete } from '@/utils/otpHelpers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SIZES } from '@/constants/theme';
@@ -297,9 +297,16 @@ export default function OtpVerificationScreen({ email: initialEmail, username: i
     setError('');
 
     try {
-      // Generate new OTP (this would normally be done in the signup flow)
-      // For now, we'll just show a message
-      const result = await sendOTPEmail(email, '123456', username);
+      // Generate new OTP
+      const newOTP = generateOTP();
+      console.log('[OtpVerification] Generated new OTP for resend:', newOTP);
+
+      // Store new OTP data
+      await storeOTPData(email, newOTP);
+      console.log('[OtpVerification] New OTP data stored');
+
+      // Send OTP email
+      const result = await sendOTPEmail(email, newOTP, username);
 
       if (result.success) {
         // Set cooldown
