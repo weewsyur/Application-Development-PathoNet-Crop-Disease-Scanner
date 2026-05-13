@@ -22,6 +22,9 @@ export interface EmailTemplateParams extends Record<string, unknown> {
   app_name: string;
   email?: string;
   recipient_email?: string;
+  to?: string;
+  user_email?: string;
+  recipient?: string;
 }
 
 export interface EmailServiceResponse {
@@ -72,6 +75,9 @@ export const sendOTPEmail = async (
       // Add common alternative field names for EmailJS compatibility
       email: email,
       recipient_email: email,
+      to: email,
+      user_email: email,
+      recipient: email,
     };
 
     console.log('[EmailService] Sending OTP email to:', email);
