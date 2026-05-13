@@ -248,17 +248,8 @@ export default function OtpVerificationScreen({ email: initialEmail, username: i
         // Clear temporary storage
         await AsyncStorage.multiRemove(['temp_signup_email', 'temp_signup_username', 'temp_signup_uid']);
 
-        // Show success and navigate to home
-        Alert.alert(
-          'Email Verified!',
-          'Your email has been successfully verified.',
-          [
-            {
-              text: 'Continue',
-              onPress: () => router.replace('/(tabs)/Home' as any),
-            },
-          ]
-        );
+        // Navigate directly to home
+        router.replace('/(tabs)/Home' as any);
       } else {
         setError(result.message);
 
