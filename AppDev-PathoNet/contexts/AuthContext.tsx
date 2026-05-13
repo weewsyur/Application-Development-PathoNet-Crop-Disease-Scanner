@@ -117,29 +117,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       setIsLoading(true);
-      
+
       if (authUser) {
         setUser(authUser);
-        
-        // Fetch user profile
-        const profile = await fetchUserProfile(authUser.uid);
-        setUserProfile(profile);
-        
-        // Store UID locally
-        await AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, authUser.uid);
-        
-        console.log('[AuthContext] User signed in:', authUser.uid);
-        console.log('[AuthContext] Profile loaded:', profile);
+
+        // Fetch user profile with timeout
+        try {
+          const profile = await Promise.race([
+            fetchUserProfile(authUser.uid),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Profile fetch timeout")), 5000))
+          ]) as any;
+          setUserProfile(profile);
+
+          // Store UID locally with timeout
+          await Promise.race([
+            AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, authUser.uid),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Storage timeout")), 3000))
+          ]);
+
+          console.log('[AuthContext] User signed in:', authUser.uid);
+          console.log('[AuthContext] Profile loaded:', profile);
+        } catch (error: any) {
+          console.error('[AuthContext] Error loading user profile:', error);
+          // Continue even if profile fetch fails
+          setUserProfile(null);
+        }
       } else {
         setUser(null);
         setUserProfile(null);
-        
-        // Clear stored UID
-        await AsyncStorage.removeItem(STORAGE_KEYS.PATHONET_UID);
-        
+
+        // Clear stored UID with timeout
+        try {
+          await Promise.race([
+            AsyncStorage.removeItem(STORAGE_KEYS.PATHONET_UID),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Storage timeout")), 3000))
+          ]);
+        } catch (error) {
+          console.error('[AuthContext] Error clearing storage:', error);
+        }
+
         console.log('[AuthContext] User signed out');
       }
-      
+
       setIsLoading(false);
     });
 

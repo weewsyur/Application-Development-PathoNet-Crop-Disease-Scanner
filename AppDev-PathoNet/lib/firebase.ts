@@ -64,17 +64,22 @@ const createMockAuth = () => {
     signInWithEmailAndPassword: async (email: string, password: string) => {
       console.warn('[Firebase] signInWithEmailAndPassword called but Firebase Auth is not configured');
       console.warn('[Firebase] Please set EXPO_PUBLIC_FIREBASE_* environment variables in .env');
+      // Simulate async delay
+      await new Promise(resolve => setTimeout(resolve, 500));
       // Return a mock user object to prevent crashes
-      return { user: { uid: 'mock-user', email }, credential: null };
+      return { user: { uid: 'mock-user-' + Date.now(), email, emailVerified: false }, credential: null };
     },
     createUserWithEmailAndPassword: async (email: string, password: string) => {
       console.warn('[Firebase] createUserWithEmailAndPassword called but Firebase Auth is not configured');
       console.warn('[Firebase] Please set EXPO_PUBLIC_FIREBASE_* environment variables in .env');
+      // Simulate async delay
+      await new Promise(resolve => setTimeout(resolve, 500));
       // Return a mock user object to prevent crashes
-      return { user: { uid: 'mock-user', email }, credential: null };
+      return { user: { uid: 'mock-user-' + Date.now(), email, emailVerified: false }, credential: null };
     },
     signOut: async () => {
       console.warn('[Firebase] SignOut called but Firebase Auth is not configured');
+      await new Promise(resolve => setTimeout(resolve, 300));
     },
     onAuthStateChanged: (callback: Function) => {
       console.warn('[Firebase] onAuthStateChanged called but Firebase Auth is not configured');

@@ -435,11 +435,16 @@ export default function SignUp() {
 
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password,
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Request timeout")), 10000)
       );
+
+      const userCredential = await Promise.race([
+        signInWithEmailAndPassword(auth, email.trim(), password),
+        timeoutPromise,
+      ]) as any;
+
       const user = userCredential.user;
 
       // Store UID locally
@@ -449,17 +454,21 @@ export default function SignUp() {
       // Navigate to home
       router.replace("/(tabs)/Home");
     } catch (e: any) {
-      const errorCode = e.code;
-      if (errorCode === "auth/user-not-found") {
-        setError("❌ No account found with this email.");
-      } else if (errorCode === "auth/wrong-password") {
-        setError("❌ Incorrect password.");
-      } else if (errorCode === "auth/invalid-email") {
-        setError("❌ Invalid email address.");
-      } else if (errorCode === "auth/too-many-requests") {
-        setError("❌ Too many failed attempts. Try again later.");
+      if (e.message === "Request timeout") {
+        setError("⏱️ Request timed out. Please check your connection and try again.");
       } else {
-        setError("❌ Sign in failed: " + (e.message || "Please try again."));
+        const errorCode = e.code;
+        if (errorCode === "auth/user-not-found") {
+          setError("❌ No account found with this email.");
+        } else if (errorCode === "auth/wrong-password") {
+          setError("❌ Incorrect password.");
+        } else if (errorCode === "auth/invalid-email") {
+          setError("❌ Invalid email address.");
+        } else if (errorCode === "auth/too-many-requests") {
+          setError("❌ Too many failed attempts. Try again later.");
+        } else {
+          setError("❌ Sign in failed: " + (e.message || "Please try again."));
+        }
       }
       console.error("[SignIn] Error:", e);
     } finally {
@@ -556,30 +565,36 @@ export default function SignUp() {
     try {
       console.log("[SignUp] Starting signup for email:", trimmedEmail);
 
-      // 1. Enhanced check for existing user
-      const userCheck = await checkExistingUser(trimmedEmail);
+      // 1. Enhanced check for existing user with timeout
+      const userCheck = await Promise.race([
+        checkExistingUser(trimmedEmail),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 10000))
+      ]) as any;
+
       if (!userCheck.shouldProceed) {
         setIsLoading(false);
         setIsSendingOTP(false);
         return;
       }
 
-      // 2. Create user with Firebase Auth
+      // 2. Create user with Firebase Auth with timeout
       console.log("[SignUp] Creating Firebase user...");
       let userCredential;
       let user;
 
       try {
-        userCredential = await createUserWithEmailAndPassword(
-          auth,
-          trimmedEmail,
-          password,
-        );
+        userCredential = await Promise.race([
+          createUserWithEmailAndPassword(auth, trimmedEmail, password),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 10000))
+        ]) as any;
+
         user = userCredential.user;
         console.log("[SignUp] User created successfully:", user.uid);
       } catch (createError: any) {
         console.error("[SignUp] Firebase user creation failed:", createError);
-        if (createError.code === "auth/email-already-in-use") {
+        if (createError.message === "Request timeout") {
+          setError("⏱️ Request timed out. Please check your connection and try again.");
+        } else if (createError.code === "auth/email-already-in-use") {
           setError(
             "❌ This email is already registered. Try signing in instead.\n\nIf you're sure this email isn't registered, please try a different email or contact support.",
           );
@@ -595,13 +610,19 @@ export default function SignUp() {
       const otp = generateOTP();
       console.log("[SignUp] Generated OTP:", otp);
 
-      // 4. Store OTP data
-      await storeOTPData(trimmedEmail, otp);
+      // 4. Store OTP data with timeout
+      await Promise.race([
+        storeOTPData(trimmedEmail, otp),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 5000))
+      ]);
       console.log("[SignUp] OTP data stored successfully");
 
-      // 5. Send OTP email
+      // 5. Send OTP email with timeout
       console.log("[SignUp] Sending OTP email...");
-      const emailResult = await sendOTPEmail(trimmedEmail, otp, trimmedUsername);
+      const emailResult = await Promise.race([
+        sendOTPEmail(trimmedEmail, otp, trimmedUsername),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 10000))
+      ]) as any;
 
       if (!emailResult.success) {
         console.error("[SignUp] EmailJS failed:", emailResult.message);
@@ -622,33 +643,51 @@ export default function SignUp() {
 
       console.log("[SignUp] OTP email sent successfully");
 
-      // 6. Save user profile to Firestore (unverified status)
+      // 6. Save user profile to Firestore (unverified status) with timeout
       console.log("[SignUp] Saving user profile to Firestore...");
-      await setDoc(doc(db, "users", user.uid), {
-        uid: user.uid,
-        email: user.email,
-        username: trimmedUsername,
-        createdAt: serverTimestamp(),
-        otpVerified: false,
-        emailVerified: false,
-        termsAccepted: false,
-        profileComplete: false,
-        lastUpdated: serverTimestamp(),
-      });
+      await Promise.race([
+        setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          email: user.email,
+          username: trimmedUsername,
+          createdAt: serverTimestamp(),
+          otpVerified: false,
+          emailVerified: false,
+          termsAccepted: false,
+          profileComplete: false,
+          lastUpdated: serverTimestamp(),
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 5000))
+      ]);
       console.log("[SignUp] User profile saved to Firestore");
 
-      // 7. Store temporary data for OTP screen
-      await AsyncStorage.setItem('temp_signup_email', trimmedEmail);
-      await AsyncStorage.setItem('temp_signup_username', trimmedUsername);
-      await AsyncStorage.setItem('temp_signup_uid', user.uid);
+      // 7. Store temporary data for OTP screen with timeout
+      await Promise.race([
+        AsyncStorage.setItem('temp_signup_email', trimmedEmail),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 3000))
+      ]);
+      await Promise.race([
+        AsyncStorage.setItem('temp_signup_username', trimmedUsername),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 3000))
+      ]);
+      await Promise.race([
+        AsyncStorage.setItem('temp_signup_uid', user.uid),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 3000))
+      ]);
       console.log("[SignUp] Temporary data stored for OTP screen");
 
-      // 8. Store UID locally
-      await AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid);
+      // 8. Store UID locally with timeout
+      await Promise.race([
+        AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 3000))
+      ]);
       console.log("[SignUp] UID stored locally");
 
-      // 9. Set cooldown for OTP requests
-      await setOTPRequestCooldown();
+      // 9. Set cooldown for OTP requests with timeout
+      await Promise.race([
+        setOTPRequestCooldown(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 3000))
+      ]);
       console.log("[SignUp] OTP cooldown set");
 
       // 10. Mark signup as completed
@@ -672,7 +711,11 @@ export default function SignUp() {
       console.error("[SignUp] Error message:", e.message);
 
       // General error handling
-      setError("❌ Signup failed: " + (e.message || "An unexpected error occurred. Please try again."));
+      if (e.message === "Request timeout") {
+        setError("⏱️ Request timed out. Please check your connection and try again.");
+      } else {
+        setError("❌ Signup failed: " + (e.message || "An unexpected error occurred. Please try again."));
+      }
     } finally {
       setIsLoading(false);
       setIsSendingOTP(false);

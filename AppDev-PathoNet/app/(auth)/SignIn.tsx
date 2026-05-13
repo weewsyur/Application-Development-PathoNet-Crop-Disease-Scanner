@@ -145,11 +145,16 @@ export default function SignIn() {
 
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password,
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Request timeout")), 10000)
       );
+
+      const userCredential = await Promise.race([
+        signInWithEmailAndPassword(auth, email.trim(), password),
+        timeoutPromise,
+      ]) as any;
+
       const user = userCredential.user;
 
       // Store UID in AsyncStorage
@@ -162,7 +167,9 @@ export default function SignIn() {
       console.error("[SignIn] Error:", e);
       const errorCode = e.code;
 
-      if (errorCode === "auth/user-not-found") {
+      if (e.message === "Request timeout") {
+        setError("⏱️ Request timed out. Please check your connection and try again.");
+      } else if (errorCode === "auth/user-not-found") {
         setError("❌ No account found with this email. Please sign up first.");
       } else if (errorCode === "auth/wrong-password") {
         setError("❌ Incorrect password. Please try again.");
@@ -182,7 +189,7 @@ export default function SignIn() {
         setError("🤖 reCAPTCHA verification failed. Please try again.");
       } else {
         console.error("[SignIn] Unknown error code:", errorCode);
-        setError(`❌ Sign in failed: ${errorCode || 'Unknown error'}. Please try again.`);
+        setError(`❌ Sign in failed: ${errorCode || e.message || 'Unknown error'}. Please try again.`);
       }
     } finally {
       setIsLoading(false);
