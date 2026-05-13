@@ -56,6 +56,123 @@ console.log("[Scan] API Configuration:", {
 });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ModalContentProps {
+  pendingResult: ScanRecord | null;
+  scanName: string;
+  scanDescription: string;
+  setScanName: (value: string) => void;
+  setScanDescription: (value: string) => void;
+  handleSkip: () => void;
+  handleSave: () => void;
+}
+
+const ModalContent = memo(function ModalContent({
+  pendingResult,
+  scanName,
+  scanDescription,
+  setScanName,
+  setScanDescription,
+  handleSkip,
+  handleSave,
+}: ModalContentProps) {
+  return (
+    <>
+      {/* Detection result summary */}
+      {pendingResult && (
+        <View
+          style={[
+            styles.modalBanner,
+            {
+              backgroundColor:
+                CATEGORY_META[pendingResult.category]?.bg ?? "#f0fdf4",
+              borderColor:
+                CATEGORY_META[pendingResult.category]?.color ??
+                "#22c55e",
+            },
+          ]}
+        >
+          <CheckCircle
+            size={24}
+            color={pendingResult.category === "healthy" ? COLORS.success : COLORS.warning}
+          />
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={styles.bannerLabel}>
+              {pendingResult.label}
+            </Text>
+            <Text
+              style={[
+                styles.bannerConf,
+                {
+                  color:
+                    CATEGORY_META[pendingResult.category]?.color ??
+                    "#22c55e",
+                },
+              ]}
+            >
+              {`${(pendingResult.confidence * 100).toFixed(1)}% confidence`}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      <Text style={styles.modalTitle}>Save Scan Record</Text>
+      <Text style={styles.modalSubtitle}>
+        Add optional details to this scan before saving.
+      </Text>
+
+      {/* Scan name */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>Scan Name</Text>
+        <TextInput
+          style={styles.textInput}
+          placeholder={`e.g., Field A – ${pendingResult?.label ?? "Plant"}`}
+          placeholderTextColor={COLORS.textLight}
+          value={scanName}
+          onChangeText={setScanName}
+          maxLength={60}
+        />
+      </View>
+
+      {/* Notes */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>Notes (optional)</Text>
+        <TextInput
+          style={[styles.textInput, styles.textArea]}
+          placeholder="Location, plant age, observations…"
+          placeholderTextColor={COLORS.textLight}
+          value={scanDescription}
+          onChangeText={setScanDescription}
+          multiline
+          numberOfLines={3}
+          maxLength={200}
+          textAlignVertical="top"
+        />
+        <Text style={styles.charCount}>
+          {scanDescription.length}/200
+        </Text>
+      </View>
+
+      {/* Buttons */}
+      <View style={styles.modalActions}>
+        <TouchableOpacity
+          style={[styles.modalBtn, styles.skipBtn]}
+          onPress={handleSkip}
+        >
+          <Text style={styles.skipBtnText}>Skip</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modalBtn, styles.saveBtn]}
+          onPress={handleSave}
+        >
+          <Text style={styles.saveBtnText}>Save & View Analytics</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+});
+
+ModalContent.displayName = "ModalContent";
 export interface ScanRecord {
   label: string;
   category: "healthy" | "fungal" | "bacterial" | "viral" | "pest";
@@ -556,104 +673,6 @@ export default function ScanScreen() {
 
   const meta = useMemo(() => result ? CATEGORY_META[result.category] : null, [result]);
 
-  // Memoize modal content to prevent unnecessary re-renders
-  const ModalContent = memo(() => (
-    <>
-      {/* Detection result summary */}
-      {pendingResult && (
-        <View
-          style={[
-            styles.modalBanner,
-            {
-              backgroundColor:
-                CATEGORY_META[pendingResult.category]?.bg ?? "#f0fdf4",
-              borderColor:
-                CATEGORY_META[pendingResult.category]?.color ??
-                "#22c55e",
-            },
-          ]}
-        >
-          <CheckCircle
-            size={24}
-            color={pendingResult.category === "healthy" ? COLORS.success : COLORS.warning}
-          />
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={styles.bannerLabel}>
-              {pendingResult.label}
-            </Text>
-            <Text
-              style={[
-                styles.bannerConf,
-                {
-                  color:
-                    CATEGORY_META[pendingResult.category]?.color ??
-                    "#22c55e",
-                },
-              ]}
-            >
-              {`${(pendingResult.confidence * 100).toFixed(1)}% confidence`}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      <Text style={styles.modalTitle}>Save Scan Record</Text>
-      <Text style={styles.modalSubtitle}>
-        Add optional details to this scan before saving.
-      </Text>
-
-      {/* Scan name */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Scan Name</Text>
-        <TextInput
-          style={styles.textInput}
-          placeholder={`e.g., Field A – ${pendingResult?.label ?? "Plant"}`}
-          placeholderTextColor={COLORS.textLight}
-          value={scanName}
-          onChangeText={setScanName}
-          maxLength={60}
-        />
-      </View>
-
-      {/* Notes */}
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Notes (optional)</Text>
-        <TextInput
-          style={[styles.textInput, styles.textArea]}
-          placeholder="Location, plant age, observations…"
-          placeholderTextColor={COLORS.textLight}
-          value={scanDescription}
-          onChangeText={setScanDescription}
-          multiline
-          numberOfLines={3}
-          maxLength={200}
-          textAlignVertical="top"
-        />
-        <Text style={styles.charCount}>
-          {scanDescription.length}/200
-        </Text>
-      </View>
-
-      {/* Buttons */}
-      <View style={styles.modalActions}>
-        <TouchableOpacity
-          style={[styles.modalBtn, styles.skipBtn]}
-          onPress={handleSkip}
-        >
-          <Text style={styles.skipBtnText}>Skip</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.modalBtn, styles.saveBtn]}
-          onPress={handleSave}
-        >
-          <Text style={styles.saveBtnText}>Save & View Analytics</Text>
-        </TouchableOpacity>
-      </View>
-    </>
-  ));
-
-  ModalContent.displayName = "ModalContent";
-
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
@@ -842,7 +861,15 @@ export default function ScanScreen() {
         modalVisible && (
           <View style={styles.webModalOverlay}>
             <View style={styles.modalContent}>
-              <ModalContent />
+              <ModalContent
+                pendingResult={pendingResult}
+                scanName={scanName}
+                scanDescription={scanDescription}
+                setScanName={setScanName}
+                setScanDescription={setScanDescription}
+                handleSkip={handleSkip}
+                handleSave={handleSave}
+              />
             </View>
           </View>
         )
@@ -857,7 +884,15 @@ export default function ScanScreen() {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <ModalContent />
+              <ModalContent
+                pendingResult={pendingResult}
+                scanName={scanName}
+                scanDescription={scanDescription}
+                setScanName={setScanName}
+                setScanDescription={setScanDescription}
+                handleSkip={handleSkip}
+                handleSave={handleSave}
+              />
             </View>
           </View>
         </Modal>
