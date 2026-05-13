@@ -82,33 +82,44 @@ export default function ProfileScreen() {
 
   // ── Sign out — use AuthContext signOut method (handles navigation automatically) ──
   const handleLogoutPress = async () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            console.log("[Profile] Starting sign out process...");
-            setLoading(true);
+    console.log("[Profile] Sign out button pressed");
 
-            // Clear local state before sign out
-            setUserName("");
-            setUserEmail("");
-
-            // Use AuthContext signOut method (handles Firebase sign out, state update, and navigation)
-            await signOut();
-
-            console.log("[Profile] Sign out successful - navigation handled by AuthContext");
-          } catch (error) {
-            console.error("[Profile] Sign out error:", error);
-            Alert.alert("Error", "Failed to sign out. Please try again.");
-          } finally {
-            setLoading(false);
-          }
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+          onPress: () => console.log("[Profile] Sign out cancelled")
         },
-      },
-    ]);
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              console.log("[Profile] Starting sign out process...");
+              setLoading(true);
+
+              // Clear local state before sign out
+              setUserName("");
+              setUserEmail("");
+
+              // Use AuthContext signOut method (handles Firebase sign out, state update, and navigation)
+              await signOut();
+
+              console.log("[Profile] Sign out successful - navigation handled by AuthContext");
+            } catch (error) {
+              console.error("[Profile] Sign out error:", error);
+              Alert.alert("Error", "Failed to sign out. Please try again.");
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   return (

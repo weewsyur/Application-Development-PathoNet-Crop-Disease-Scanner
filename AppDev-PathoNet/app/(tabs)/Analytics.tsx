@@ -16,7 +16,7 @@ import {
   Platform,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { TrendingUp, Activity, BarChart3, PieChart, Filter, Download, RefreshCw, Clock } from "lucide-react";
+import { TrendingUp, Activity, BarChart3, PieChart, Filter, Download, RefreshCw, Clock, Camera, Bug, Leaf } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { COLORS, SIZES } from "@/constants/theme";
 import { CATEGORY_COLOR } from "@/constants/categoryColors";
@@ -238,25 +238,25 @@ export default function AnalyticsScreen() {
 
     const STATS = [
       {
-        icon: "scan-outline" as const,
+        icon: Camera,
         label: "Total Scans",
         value: total.toString(),
         color: "#3b82f6",
       },
       {
-        icon: "bug-outline" as const,
+        icon: Bug,
         label: "Diseases Found",
         value: diseased.toString(),
         color: "#ef4444",
       },
       {
-        icon: "leaf-outline" as const,
+        icon: Leaf,
         label: "Healthy Crops",
         value: healthy.toString(),
         color: "#22c55e",
       },
       {
-        icon: "analytics-outline" as const,
+        icon: TrendingUp,
         label: "Avg Confidence",
         value: total > 0 ? `${(avgConf * 100).toFixed(1)}%` : "—",
         color: "#f59e0b",
@@ -324,7 +324,7 @@ export default function AnalyticsScreen() {
                       { backgroundColor: s.color + "1A" },
                     ])}
                   >
-                    <TrendingUp size={22} color={s.color} />
+                    <s.icon size={22} color={s.color} />
                   </View>
                   <Text style={styles.statValue}>{s.value}</Text>
                   <Text style={styles.statLabel}>{s.label}</Text>
