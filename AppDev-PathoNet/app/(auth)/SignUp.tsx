@@ -15,6 +15,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  fetchSignInMethodsForEmail,
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -378,6 +379,18 @@ function AuthModeToggle({ mode, onModeChange }: AuthModeToggleProps) {
 
 // ─── Screen: SignUp ───────────────────────────────────────────────────────────
 
+// ─── Helper: Check if email exists ─────────────────────────────────────────────
+const checkEmailExists = async (email: string): Promise<boolean> => {
+  try {
+    const methods = await fetchSignInMethodsForEmail(auth, email);
+    return methods.length > 0;
+  } catch (error) {
+    console.log("[SignUp] Error checking email existence:", error);
+    // If we can't check, assume it doesn't exist and let Firebase handle it
+    return false;
+  }
+};
+
 export default function SignUp() {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signup");
@@ -470,17 +483,49 @@ export default function SignUp() {
     }
 
     setIsLoading(true);
+    const trimmedEmail = email.trim();
+
     try {
-      // 1. Create user with Firebase Auth
+      console.log("[SignUp] Starting signup for email:", trimmedEmail);
+
+      // 1. Check if email already exists (optional pre-check)
+      const emailExists = await checkEmailExists(trimmedEmail);
+      console.log("[SignUp] Email exists check result:", emailExists);
+
+      if (emailExists) {
+        // Offer to switch to sign in mode
+        Alert.alert(
+          "Email Already Registered",
+          "This email is already registered. Would you like to sign in instead?",
+          [
+            {
+              text: "Try Different Email",
+              style: "cancel",
+            },
+            {
+              text: "Sign In",
+              onPress: () => {
+                setMode("signin");
+                setError("");
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // 2. Create user with Firebase Auth
+      console.log("[SignUp] Creating Firebase user...");
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        email.trim(),
+        trimmedEmail,
         password,
       );
       const user = userCredential.user;
-      console.log("[SignUp] User created:", user.uid);
+      console.log("[SignUp] User created successfully:", user.uid);
 
-      // 2. Save user profile to Firestore (directly accessible, no verification needed)
+      // 3. Save user profile to Firestore (directly accessible, no verification needed)
+      console.log("[SignUp] Saving user profile to Firestore...");
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email: user.email,
@@ -492,10 +537,10 @@ export default function SignUp() {
       });
       console.log("[SignUp] User profile saved to Firestore");
 
-      // 3. Store UID locally for quick access
+      // 4. Store UID locally for quick access
       await AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid);
 
-      // 4. Navigate directly to home (no verification screen)
+      // 5. Navigate directly to home (no verification screen)
       Alert.alert("Success!", `Welcome ${username}! You're all set.`, [
         {
           text: "OK",
@@ -504,11 +549,14 @@ export default function SignUp() {
       ]);
     } catch (e: any) {
       console.error("[SignUp] Error:", e);
+      console.error("[SignUp] Error code:", e.code);
+      console.error("[SignUp] Error message:", e.message);
       const errorCode = e.code;
 
       if (errorCode === "auth/email-already-in-use") {
+        console.log("[SignUp] Email already in use, checking if user can sign in...");
         setError(
-          "❌ This email is already registered. Try signing in instead.",
+          "❌ This email is already registered. Try signing in instead.\n\nIf you're sure this email isn't registered, please try a different email or contact support.",
         );
       } else if (errorCode === "auth/weak-password") {
         setError("❌ Password must be at least 6 characters.");
@@ -522,6 +570,8 @@ export default function SignUp() {
         setError("❌ Too many failed attempts. Please try again later.");
       } else if (errorCode === "auth/user-disabled") {
         setError("❌ This account has been disabled. Contact support.");
+      } else if (errorCode === "auth/internal-error") {
+        setError("❌ Internal server error. Please try again.");
       } else {
         setError("❌ Signup failed: " + (e.message || "Please try again."));
       }
