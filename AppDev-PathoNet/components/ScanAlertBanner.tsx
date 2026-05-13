@@ -75,7 +75,7 @@ const ScanAlertBanner = React.memo(function ScanAlertBanner({
     if (noteText === '' && initialNote !== '') {
       setNoteText(initialNote);
     }
-  }, [initialNote, timestamp, noteText]);
+  }, [initialNote, timestamp]);
 
   const runSuccessAnimation = useCallback(() => {
     successOpacity.setValue(1);
