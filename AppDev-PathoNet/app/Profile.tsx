@@ -79,7 +79,7 @@ export default function ProfileScreen() {
     }
   };
 
-  // ── FIX: Sign out — navigate to login screen after successful sign out ─────────
+  // ── Sign out — clear local state and let AuthContext handle navigation ─────────
   const handleLogout = async () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
@@ -91,17 +91,14 @@ export default function ProfileScreen() {
             console.log("[Profile] Starting sign out process...");
             setLoading(true);
 
-            // Sign out using AuthContext (handles Firebase auth and state updates)
-            await signOut();
-
-            console.log("[Profile] Sign out successful");
-
-            // Clear local state immediately
+            // Clear local state before sign out
             setUserName("");
             setUserEmail("");
 
-            // Navigate to login screen and clear the navigation stack
-            router.replace("/(auth)/Login" as any);
+            // Sign out using AuthContext (handles Firebase auth, state updates, and navigation to Welcome)
+            await signOut();
+
+            console.log("[Profile] Sign out successful");
           } catch (error) {
             console.error("[Profile] Sign out error:", error);
             Alert.alert("Error", "Failed to sign out. Please try again.");
