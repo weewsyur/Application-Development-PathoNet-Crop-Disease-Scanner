@@ -61,7 +61,7 @@ export default function RootLayout() {
         const authTimeout = setTimeout(() => {
           console.warn('[RootLayout] Auth initialization timeout - proceeding without auth');
           setIsReady(true);
-        }, 3000);
+        }, 1500);
 
         return () => {
           unsubscribe();
@@ -87,7 +87,7 @@ export default function RootLayout() {
         console.warn('[RootLayout] Loading timeout - forcing render');
         setLoadingTimeout(true);
       }
-    }, 5000); // 5 second timeout
+    }, 2000); // 2 second timeout for faster debugging
 
     return () => clearTimeout(timer);
   }, [isReady]);
