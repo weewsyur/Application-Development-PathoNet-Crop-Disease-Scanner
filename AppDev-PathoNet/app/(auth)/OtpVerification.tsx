@@ -24,7 +24,7 @@ import { maskEmail, formatTimeRemaining, generateOTPInputRefs, focusNextOTPInput
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, SIZES } from '@/constants/theme';
 import { STORAGE_KEYS } from '@/lib/storage';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface OtpVerificationScreenProps {
@@ -48,32 +48,80 @@ export default function OtpVerificationScreen({ email: initialEmail, username: i
   const [cooldown, setCooldown] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(OTP_CONFIG.EXPIRATION_MINUTES * 60);
   const [isExpired, setIsExpired] = useState(false);
+  const [isRecovering, setIsRecovering] = useState(false);
 
   // Refs for OTP inputs
   const inputRefs = useRef(generateOTPInputRefs(6));
   const cooldownInterval = useRef<NodeJS.Timeout | null>(null);
   const expirationInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Load user data from storage if not provided
+  // Enhanced recovery flow for app reloads and incomplete states
   useEffect(() => {
     const loadUserData = async () => {
-      if (!email || !username || !uid) {
-        try {
-          const storedEmail = await AsyncStorage.getItem('temp_signup_email');
-          const storedUsername = await AsyncStorage.getItem('temp_signup_username');
-          const storedUid = await AsyncStorage.getItem('temp_signup_uid');
+      try {
+        console.log('[OtpVerification] Loading user data for recovery...');
 
-          if (storedEmail) setEmail(storedEmail);
-          if (storedUsername) setUsername(storedUsername);
-          if (storedUid) setUid(storedUid);
-        } catch (error) {
-          console.error('[OtpVerification] Error loading user data:', error);
+        // Load temporary signup data
+        const storedEmail = await AsyncStorage.getItem('temp_signup_email');
+        const storedUsername = await AsyncStorage.getItem('temp_signup_username');
+        const storedUid = await AsyncStorage.getItem('temp_signup_uid');
+
+        // Check if we have recovery data
+        if (storedEmail && storedUsername && storedUid) {
+          console.log('[OtpVerification] Found recovery data:', { storedEmail, storedUsername, storedUid });
+
+          if (!email || !username || !uid) {
+            setEmail(storedEmail);
+            setUsername(storedUsername);
+            setUid(storedUid);
+            setIsRecovering(true);
+          }
+        } else {
+          console.log('[OtpVerification] No recovery data found');
+
+          // If no recovery data but user is authenticated, check their verification status
+          const mainUid = await AsyncStorage.getItem(STORAGE_KEYS.PATHONET_UID);
+          if (mainUid && (!email || !username || !uid)) {
+            console.log('[OtpVerification] User authenticated but missing recovery data, redirecting to signup');
+            router.replace('/(auth)/SignUp' as any);
+            return;
+          }
         }
+      } catch (error) {
+        console.error('[OtpVerification] Error loading user data:', error);
       }
     };
 
     loadUserData();
   }, [email, username, uid]);
+
+  // Auto-redirect if user is already verified
+  useEffect(() => {
+    const checkVerificationStatus = async () => {
+      if (uid && !isRecovering) {
+        try {
+          // Check if user is already verified
+          const userDoc = await getDoc(doc(db, 'users', uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            if (userData?.otpVerified && userData?.termsAccepted) {
+              console.log('[OtpVerification] User already verified, redirecting to home');
+              router.replace('/(tabs)/Home' as any);
+              return;
+            } else if (userData?.otpVerified && !userData?.termsAccepted) {
+              console.log('[OtpVerification] User OTP verified but terms not accepted, redirecting to terms');
+              router.replace('/(auth)/Terms' as any);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('[OtpVerification] Error checking verification status:', error);
+        }
+      }
+    };
+
+    checkVerificationStatus();
+  }, [uid, isRecovering]);
 
   // Cooldown timer
   useEffect(() => {
@@ -279,8 +327,23 @@ export default function OtpVerificationScreen({ email: initialEmail, username: i
     }
   }, [email, username]);
 
-  // Go back
+  // Enhanced go back with cleanup
   const handleGoBack = () => {
+    console.log('[OtpVerification] Going back from OTP screen');
+
+    // If recovering from incomplete state, clean up
+    if (isRecovering) {
+      const cleanup = async () => {
+        try {
+          await AsyncStorage.multiRemove(['temp_signup_email', 'temp_signup_username', 'temp_signup_uid']);
+          console.log('[OtpVerification] Cleaned up recovery data');
+        } catch (error) {
+          console.error('[OtpVerification] Error cleaning up recovery data:', error);
+        }
+      };
+      cleanup();
+    }
+
     router.back();
   };
 
@@ -310,7 +373,15 @@ export default function OtpVerificationScreen({ email: initialEmail, username: i
             <Mail size={48} color={COLORS.primary} />
           </View>
 
-          {/* Instructions */}
+          {/* Enhanced instructions with recovery indicator */}
+          {isRecovering && (
+            <View style={styles.recoveryBanner}>
+              <Text style={styles.recoveryText}>
+                🔄 Continuing your verification process
+              </Text>
+            </View>
+          )}
+
           <Text style={styles.title}>Check your email</Text>
           <Text style={styles.subtitle}>
             We've sent a 6-digit verification code to{'\n'}
@@ -586,5 +657,19 @@ const styles = StyleSheet.create({
   },
   resendButtonTextDisabled: {
     color: COLORS.textLight,
+  },
+  recoveryBanner: {
+    backgroundColor: COLORS.primaryLighter,
+    borderRadius: SIZES.radius,
+    padding: SIZES.md,
+    marginBottom: SIZES.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  recoveryText: {
+    fontSize: SIZES.font,
+    color: COLORS.primary,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

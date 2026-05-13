@@ -17,7 +17,7 @@ import {
   signOut,
   fetchSignInMethodsForEmail,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS, SIZES } from "@/constants/theme";
@@ -165,11 +165,19 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  primaryButtonDisabled: {
+    backgroundColor: COLORS.textLight,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   primaryButtonText: {
     color: COLORS.white,
     fontSize: SIZES.font,
     fontWeight: "700",
     letterSpacing: 0.5,
+  },
+  primaryButtonTextDisabled: {
+    color: COLORS.textMid,
   },
 
   // Auth Mode Toggle
@@ -319,16 +327,24 @@ function AuthInput({
 type PrimaryButtonProps = {
   title: string;
   onPress: () => void;
+  disabled?: boolean;
 };
 
-function PrimaryButton({ title, onPress }: PrimaryButtonProps) {
+function PrimaryButton({ title, onPress, disabled = false }: PrimaryButtonProps) {
   return (
     <TouchableOpacity
-      style={styles.primaryButton}
+      style={[
+        styles.primaryButton,
+        disabled && styles.primaryButtonDisabled
+      ]}
       onPress={onPress}
-      activeOpacity={0.82}
+      disabled={disabled}
+      activeOpacity={disabled ? 0.5 : 0.82}
     >
-      <Text style={styles.primaryButtonText}>{title}</Text>
+      <Text style={[
+        styles.primaryButtonText,
+        disabled && styles.primaryButtonTextDisabled
+      ]}>{title}</Text>
     </TouchableOpacity>
   );
 }
@@ -402,6 +418,8 @@ export default function SignUp() {
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSendingOTP, setIsSendingOTP] = useState(false);
+  const [signupCompleted, setSignupCompleted] = useState(false);
 
   // ─── Sign In Handler (No Verification Required) ──────────────────────────
   const handleSignIn = async () => {
@@ -449,6 +467,46 @@ export default function SignUp() {
     }
   };
 
+  // ─── Enhanced Email Check with Recovery Logic ────────────────────
+  const checkExistingUser = async (trimmedEmail: string) => {
+    try {
+      console.log("[SignUp] Checking existing user for:", trimmedEmail);
+
+      // Check Firebase auth methods
+      const emailExists = await checkEmailExists(trimmedEmail);
+
+      if (emailExists) {
+        console.log("[SignUp] Email exists in Firebase, checking Firestore...");
+
+        // Try to get user data from Firestore to check verification status
+        // Note: We can't directly query by email, so we'll offer sign in
+        Alert.alert(
+          "Email Already Registered",
+          "This email is already registered. Would you like to sign in instead?",
+          [
+            {
+              text: "Try Different Email",
+              style: "cancel",
+            },
+            {
+              text: "Sign In",
+              onPress: () => {
+                setMode("signin");
+                setError("");
+              },
+            },
+          ]
+        );
+        return { exists: true, shouldProceed: false };
+      }
+
+      return { exists: false, shouldProceed: true };
+    } catch (error) {
+      console.error("[SignUp] Error checking existing user:", error);
+      return { exists: false, shouldProceed: true };
+    }
+  };
+
   // ─── Sign Up Handler (With OTP Verification) ────────────────────
   const handleSignUp = async () => {
     setError("");
@@ -484,48 +542,54 @@ export default function SignUp() {
       return;
     }
 
+    // Prevent multiple simultaneous signups
+    if (isLoading || isSendingOTP || signupCompleted) {
+      console.log("[SignUp] Signup already in progress, ignoring request");
+      return;
+    }
+
     setIsLoading(true);
+    setIsSendingOTP(true);
     const trimmedEmail = email.trim();
     const trimmedUsername = username.trim();
 
     try {
       console.log("[SignUp] Starting signup for email:", trimmedEmail);
 
-      // 1. Check if email already exists
-      const emailExists = await checkEmailExists(trimmedEmail);
-      console.log("[SignUp] Email exists check result:", emailExists);
-
-      if (emailExists) {
-        // Offer to switch to sign in mode
-        Alert.alert(
-          "Email Already Registered",
-          "This email is already registered. Would you like to sign in instead?",
-          [
-            {
-              text: "Try Different Email",
-              style: "cancel",
-            },
-            {
-              text: "Sign In",
-              onPress: () => {
-                setMode("signin");
-                setError("");
-              },
-            },
-          ]
-        );
+      // 1. Enhanced check for existing user
+      const userCheck = await checkExistingUser(trimmedEmail);
+      if (!userCheck.shouldProceed) {
+        setIsLoading(false);
+        setIsSendingOTP(false);
         return;
       }
 
       // 2. Create user with Firebase Auth
       console.log("[SignUp] Creating Firebase user...");
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        trimmedEmail,
-        password,
-      );
-      const user = userCredential.user;
-      console.log("[SignUp] User created successfully:", user.uid);
+      let userCredential;
+      let user;
+
+      try {
+        userCredential = await createUserWithEmailAndPassword(
+          auth,
+          trimmedEmail,
+          password,
+        );
+        user = userCredential.user;
+        console.log("[SignUp] User created successfully:", user.uid);
+      } catch (createError: any) {
+        console.error("[SignUp] Firebase user creation failed:", createError);
+        if (createError.code === "auth/email-already-in-use") {
+          setError(
+            "❌ This email is already registered. Try signing in instead.\n\nIf you're sure this email isn't registered, please try a different email or contact support.",
+          );
+        } else {
+          setError(`❌ Account creation failed: ${createError.message || "Please try again."}`);
+        }
+        setIsLoading(false);
+        setIsSendingOTP(false);
+        return;
+      }
 
       // 3. Generate OTP
       const otp = generateOTP();
@@ -533,17 +597,30 @@ export default function SignUp() {
 
       // 4. Store OTP data
       await storeOTPData(trimmedEmail, otp);
+      console.log("[SignUp] OTP data stored successfully");
 
       // 5. Send OTP email
       console.log("[SignUp] Sending OTP email...");
       const emailResult = await sendOTPEmail(trimmedEmail, otp, trimmedUsername);
 
       if (!emailResult.success) {
+        console.error("[SignUp] EmailJS failed:", emailResult.message);
+
         // If email fails, delete the user and show error
-        await user.delete();
+        try {
+          await user.delete();
+          console.log("[SignUp] Cleaned up Firebase user due to email failure");
+        } catch (deleteError) {
+          console.error("[SignUp] Error deleting user:", deleteError);
+        }
+
         setError(`❌ Failed to send verification email: ${emailResult.message}`);
+        setIsLoading(false);
+        setIsSendingOTP(false);
         return;
       }
+
+      console.log("[SignUp] OTP email sent successfully");
 
       // 6. Save user profile to Firestore (unverified status)
       console.log("[SignUp] Saving user profile to Firestore...");
@@ -564,55 +641,41 @@ export default function SignUp() {
       await AsyncStorage.setItem('temp_signup_email', trimmedEmail);
       await AsyncStorage.setItem('temp_signup_username', trimmedUsername);
       await AsyncStorage.setItem('temp_signup_uid', user.uid);
+      console.log("[SignUp] Temporary data stored for OTP screen");
 
       // 8. Store UID locally
       await AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid);
+      console.log("[SignUp] UID stored locally");
 
       // 9. Set cooldown for OTP requests
       await setOTPRequestCooldown();
+      console.log("[SignUp] OTP cooldown set");
 
+      // 10. Mark signup as completed
+      setSignupCompleted(true);
+      console.log("[SignUp] Signup process completed successfully");
+
+      // 11. Navigate to OTP verification screen (IMMEDIATE, no Alert)
       console.log("[SignUp] Navigating to OTP verification...");
+      router.replace("/(auth)/OtpVerification" as any);
 
-      // 10. Navigate to OTP verification screen
-      Alert.alert(
-        "Account Created!",
-        `A verification code has been sent to ${trimmedEmail}. Please check your email and enter the code to verify your account.`,
-        [
-          {
-            text: "OK",
-            onPress: () => router.replace("/(auth)/OtpVerification" as any),
-          },
-        ]
-      );
+      // 12. Show success message after navigation
+      setTimeout(() => {
+        Alert.alert(
+          "Account Created!",
+          `A verification code has been sent to ${trimmedEmail}. Please check your email and enter the code to verify your account.`
+        );
+      }, 500);
     } catch (e: any) {
-      console.error("[SignUp] Error:", e);
+      console.error("[SignUp] Unexpected error during signup:", e);
       console.error("[SignUp] Error code:", e.code);
       console.error("[SignUp] Error message:", e.message);
-      const errorCode = e.code;
 
-      if (errorCode === "auth/email-already-in-use") {
-        setError(
-          "❌ This email is already registered. Try signing in instead.\n\nIf you're sure this email isn't registered, please try a different email or contact support.",
-        );
-      } else if (errorCode === "auth/weak-password") {
-        setError("❌ Password must be at least 6 characters.");
-      } else if (errorCode === "auth/invalid-email") {
-        setError("❌ Please enter a valid email address.");
-      } else if (errorCode === "auth/operation-not-allowed") {
-        setError("❌ Email/password signup is disabled. Contact support.");
-      } else if (errorCode === "auth/network-request-failed") {
-        setError("❌ Network error. Please check your connection and try again.");
-      } else if (errorCode === "auth/too-many-requests") {
-        setError("❌ Too many failed attempts. Please try again later.");
-      } else if (errorCode === "auth/user-disabled") {
-        setError("❌ This account has been disabled. Contact support.");
-      } else if (errorCode === "auth/internal-error") {
-        setError("❌ Internal server error. Please try again.");
-      } else {
-        setError("❌ Signup failed: " + (e.message || "Please try again."));
-      }
+      // General error handling
+      setError("❌ Signup failed: " + (e.message || "An unexpected error occurred. Please try again."));
     } finally {
       setIsLoading(false);
+      setIsSendingOTP(false);
     }
   };
 
@@ -693,10 +756,15 @@ export default function SignUp() {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          {/* Single button - no verification banner needed */}
+          {/* Enhanced button with proper state handling */}
           <PrimaryButton
-            title={mode === "signin" ? "SIGN IN" : "CREATE ACCOUNT"}
+            title={
+              mode === "signin"
+                ? (isLoading ? "SIGNING IN..." : "SIGN IN")
+                : (isLoading || isSendingOTP ? "CREATING ACCOUNT..." : "CREATE ACCOUNT")
+            }
             onPress={mode === "signin" ? handleSignIn : handleSignUp}
+            disabled={isLoading || isSendingOTP || signupCompleted}
           />
         </ScrollView>
       </View>
