@@ -655,7 +655,7 @@ export default function ScanScreen() {
   const handleSave = useCallback(() => {
     console.log("[Scan] handleSave pressed");
     commitAndNavigate(scanName, scanDescription);
-  }, [commitAndNavigate, scanName, scanDescription]);
+  }, [commitAndNavigate]);
 
   const handleSkip = useCallback(() => {
     console.log("[Scan] handleSkip pressed");
