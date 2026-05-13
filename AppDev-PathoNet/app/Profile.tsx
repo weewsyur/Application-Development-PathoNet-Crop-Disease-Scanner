@@ -35,7 +35,8 @@ export default function ProfileScreen() {
       const userDoc = await getDoc(doc(db, "users", uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        const username = userData?.username || userData?.email?.split("@")[0] || "User";
+        const username =
+          userData?.username || userData?.email?.split("@")[0] || "User";
         setUserName(username);
         setUserEmail(userData?.email || currentUser?.email || "");
       } else {
@@ -68,6 +69,17 @@ export default function ProfileScreen() {
     }
   }, [user, userProfile, authLoading, fetchUserName]);
 
+  // ── FIX: Back button — use canGoBack() guard before calling router.back() ──────
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      // Fallback: navigate to a safe default screen when there's no history
+      router.replace("/");
+    }
+  };
+
+  // ── FIX: Sign out — navigate to login screen after successful sign out ─────────
   const handleLogout = async () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
@@ -79,7 +91,7 @@ export default function ProfileScreen() {
             console.log("[Profile] Starting sign out process...");
             setLoading(true);
 
-            // Sign out using AuthContext (this handles Firebase auth and state updates)
+            // Sign out using AuthContext (handles Firebase auth and state updates)
             await signOut();
 
             console.log("[Profile] Sign out successful");
@@ -87,6 +99,9 @@ export default function ProfileScreen() {
             // Clear local state immediately
             setUserName("");
             setUserEmail("");
+
+            // Navigate to login screen and clear the navigation stack
+            router.replace("/(auth)/Login" as any);
           } catch (error) {
             console.error("[Profile] Sign out error:", error);
             Alert.alert("Error", "Failed to sign out. Please try again.");
@@ -103,7 +118,7 @@ export default function ProfileScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={handleBack}
           style={styles.backButton}
           activeOpacity={0.7}
         >
@@ -150,10 +165,7 @@ export default function ProfileScreen() {
         {/* App Info Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Info
-              size={20}
-              color={COLORS.primary}
-            />
+            <Info size={20} color={COLORS.primary} />
             <Text style={styles.cardTitle}>About App</Text>
           </View>
           <View style={styles.cardContent}>
