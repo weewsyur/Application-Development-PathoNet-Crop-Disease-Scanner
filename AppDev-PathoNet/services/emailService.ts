@@ -20,6 +20,8 @@ export interface EmailTemplateParams extends Record<string, unknown> {
   otp_code: string;
   expiration_minutes: string;
   app_name: string;
+  email?: string;
+  recipient_email?: string;
 }
 
 export interface EmailServiceResponse {
@@ -67,9 +69,13 @@ export const sendOTPEmail = async (
       otp_code: otp,
       expiration_minutes: '5',
       app_name: 'PathoNet',
+      // Add common alternative field names for EmailJS compatibility
+      email: email,
+      recipient_email: email,
     };
 
     console.log('[EmailService] Sending OTP email to:', email);
+    console.log('[EmailService] Template params:', templateParams);
 
     // Send email using EmailJS
     const response = await emailjs.send(
