@@ -10,6 +10,7 @@ import { logEnvironmentInfo, logError } from "@/lib/debug";
 import { Platform } from "react-native";
 import ErrorBoundary from './_error-boundary';
 import LoadingFallback from './_loading-fallback';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -32,10 +33,10 @@ export default function RootLayout() {
       await initializeAsyncStorage();
       try {
         console.log('[RootLayout] Initializing Firebase auth...');
-        
+
         // Check Firebase availability first
         const { isFirebaseAvailable, missingKeys } = require('@/lib/firebase').getFirebaseStatus();
-        
+
         if (!isFirebaseAvailable) {
           console.warn('[RootLayout] Firebase not available, missing keys:', missingKeys);
           setIsReady(true);
@@ -45,13 +46,13 @@ export default function RootLayout() {
         // Listen to Firebase auth state
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
           console.log('[RootLayout] Auth state changed:', user ? `User: ${user.email}` : 'No user');
-          
-          if (user && user.emailVerified) {
-            // User is signed in and email verified, go to Home
+
+          if (user) {
+            // User is signed in, store UID and let AuthProvider handle routing
             await AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid);
-            router.replace("/(tabs)/Home");
+            setIsReady(true);
           } else {
-            // Otherwise, let's user stay on Welcome screen (default route)
+            // No user, let them stay on Welcome screen (default route)
             setIsReady(true);
           }
         });
@@ -98,11 +99,13 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-        }}
-      />
+      <AuthProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+          }}
+        />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

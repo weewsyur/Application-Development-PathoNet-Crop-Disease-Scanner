@@ -23,13 +23,14 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Sun, Moon, Leaf, TrendingUp, User, Scan, Bug, BarChart3 } from "lucide-react";
-import { onAuthStateChanged } from "firebase/auth";
 import { onSnapshot, collection, query, orderBy, limit, doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import AppHeader from "@/components/AppHeader";
 import { UserProfileBadge } from "@/components/UserProfileBadge";
+import { AuthGuard } from "@/components/AuthGuard";
+import { useAuth } from "@/contexts/AuthContext";
 import { COLORS, SIZES } from "@/constants/theme";
 import { CATEGORY_COLOR } from "@/constants/categoryColors";
 import type { ScanRecord } from "./Scan";
@@ -216,59 +217,25 @@ function ScanFeed({ data, onRefresh, refreshing }: ScanFeedProps) {
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────────
 
-export default function HomeScreen() {
+function HomeScreenContent() {
   const router = useRouter();
+  const { userProfile, refreshProfile } = useAuth();
   const [userName, setUserName] = useState<string>("");
   const [scans, setScans] = useState<ScanRecord[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const authUnsubscribeRef = useRef<(() => void) | null>(null);
 
-  // ── Fetch username from Firebase Auth or Firestore ─────────────────────────────
-  const fetchUserName = useCallback(async (uid: string) => {
-    try {
-      // First try Firebase Auth displayName
-      const user = auth.currentUser;
-      if (user?.displayName) {
-        setUserName(user.displayName);
-        return;
-      }
-
-      // Then try Firestore username field
-      const userDoc = await getDoc(doc(db, "users", uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const username = userData?.username || userData?.email?.split("@")[0] || "User";
-        setUserName(username);
-      } else {
-        // Fallback to email prefix
-        setUserName(user?.email?.split("@")[0] || "User");
-      }
-    } catch (error) {
-      console.error("[Home] Error fetching username:", error);
-      const currentUser = auth.currentUser;
-      setUserName(currentUser?.email?.split("@")[0] || "User");
-    }
-  }, []);
-
-  // ── Auth state listener ────────────────────────────────────────────────────────
+  // ── Fetch username from user profile ───────────────────────────────────────
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        fetchUserName(user.uid);
-      } else {
-        setUserName(""); // Clear username when signed out
-      }
-    });
-
-    authUnsubscribeRef.current = unsubscribe;
-
-    return () => {
-      if (authUnsubscribeRef.current) {
-        authUnsubscribeRef.current();
-      }
-    };
-  }, [fetchUserName]);
+    if (userProfile?.username) {
+      setUserName(userProfile.username);
+    } else if (userProfile?.email) {
+      setUserName(userProfile.email.split("@")[0] || "User");
+    } else {
+      setUserName("User");
+    }
+  }, [userProfile]);
 
   // ── Load from AsyncStorage (initial load) ───────────────────────────────────────
   const loadFromStorage = async () => {
@@ -294,14 +261,13 @@ export default function HomeScreen() {
   // ── Real-time Firestore Sync ────────────────────────────────────────────────────
   useEffect(() => {
     const setupFirestoreListener = async () => {
-      const uid = await AsyncStorage.getItem(STORAGE_KEYS.PATHONET_UID);
-      if (!uid) {
+      if (!userProfile?.uid) {
         loadFromStorage();
         return;
       }
 
       // Set up real-time listener with limit to improve performance
-      const q = query(collection(db, "users", uid, "scans"), orderBy("timestamp", "desc"), limit(50));
+      const q = query(collection(db, "users", userProfile.uid, "scans"), orderBy("timestamp", "desc"), limit(50));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const firestoreData: ScanRecord[] = [];
         snapshot.forEach((doc) => {
@@ -349,7 +315,7 @@ export default function HomeScreen() {
         unsubscribeRef.current();
       }
     };
-  }, []);
+  }, [userProfile?.uid]);
 
   // ── Pull to Refresh ────────────────────────────────────────────────────────────
   const onRefresh = useCallback(async () => {
@@ -417,6 +383,14 @@ export default function HomeScreen() {
         }
       />
     </View>
+  );
+}
+
+export default function HomeScreen() {
+  return (
+    <AuthGuard requireAuth={true} requireOtp={true} requireTerms={true}>
+      <HomeScreenContent />
+    </AuthGuard>
   );
 }
 

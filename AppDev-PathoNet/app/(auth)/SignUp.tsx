@@ -22,6 +22,8 @@ import { auth, db } from "@/lib/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS, SIZES } from "@/constants/theme";
 import { STORAGE_KEYS } from "@/lib/storage";
+import { sendOTPEmail } from "@/services/emailService";
+import { generateOTP, storeOTPData, setOTPRequestCooldown } from "@/services/otpService";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -447,7 +449,7 @@ export default function SignUp() {
     }
   };
 
-  // ─── Sign Up Handler (Direct Access - No Email Verification) ─────────────
+  // ─── Sign Up Handler (With OTP Verification) ────────────────────
   const handleSignUp = async () => {
     setError("");
 
@@ -484,11 +486,12 @@ export default function SignUp() {
 
     setIsLoading(true);
     const trimmedEmail = email.trim();
+    const trimmedUsername = username.trim();
 
     try {
       console.log("[SignUp] Starting signup for email:", trimmedEmail);
 
-      // 1. Check if email already exists (optional pre-check)
+      // 1. Check if email already exists
       const emailExists = await checkEmailExists(trimmedEmail);
       console.log("[SignUp] Email exists check result:", emailExists);
 
@@ -524,29 +527,63 @@ export default function SignUp() {
       const user = userCredential.user;
       console.log("[SignUp] User created successfully:", user.uid);
 
-      // 3. Save user profile to Firestore (directly accessible, no verification needed)
+      // 3. Generate OTP
+      const otp = generateOTP();
+      console.log("[SignUp] Generated OTP:", otp);
+
+      // 4. Store OTP data
+      await storeOTPData(trimmedEmail, otp);
+
+      // 5. Send OTP email
+      console.log("[SignUp] Sending OTP email...");
+      const emailResult = await sendOTPEmail(trimmedEmail, otp, trimmedUsername);
+
+      if (!emailResult.success) {
+        // If email fails, delete the user and show error
+        await user.delete();
+        setError(`❌ Failed to send verification email: ${emailResult.message}`);
+        return;
+      }
+
+      // 6. Save user profile to Firestore (unverified status)
       console.log("[SignUp] Saving user profile to Firestore...");
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email: user.email,
-        username: username.trim(),
+        username: trimmedUsername,
         createdAt: serverTimestamp(),
-        // Remove emailVerified flag - not needed
+        otpVerified: false,
+        emailVerified: false,
+        termsAccepted: false,
         profileComplete: false,
         lastUpdated: serverTimestamp(),
       });
       console.log("[SignUp] User profile saved to Firestore");
 
-      // 4. Store UID locally for quick access
+      // 7. Store temporary data for OTP screen
+      await AsyncStorage.setItem('temp_signup_email', trimmedEmail);
+      await AsyncStorage.setItem('temp_signup_username', trimmedUsername);
+      await AsyncStorage.setItem('temp_signup_uid', user.uid);
+
+      // 8. Store UID locally
       await AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid);
 
-      // 5. Navigate directly to home (no verification screen)
-      Alert.alert("Success!", `Welcome ${username}! You're all set.`, [
-        {
-          text: "OK",
-          onPress: () => router.replace("/(tabs)/Home"),
-        },
-      ]);
+      // 9. Set cooldown for OTP requests
+      await setOTPRequestCooldown();
+
+      console.log("[SignUp] Navigating to OTP verification...");
+
+      // 10. Navigate to OTP verification screen
+      Alert.alert(
+        "Account Created!",
+        `A verification code has been sent to ${trimmedEmail}. Please check your email and enter the code to verify your account.`,
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace("/(auth)/OtpVerification" as any),
+          },
+        ]
+      );
     } catch (e: any) {
       console.error("[SignUp] Error:", e);
       console.error("[SignUp] Error code:", e.code);
@@ -554,7 +591,6 @@ export default function SignUp() {
       const errorCode = e.code;
 
       if (errorCode === "auth/email-already-in-use") {
-        console.log("[SignUp] Email already in use, checking if user can sign in...");
         setError(
           "❌ This email is already registered. Try signing in instead.\n\nIf you're sure this email isn't registered, please try a different email or contact support.",
         );

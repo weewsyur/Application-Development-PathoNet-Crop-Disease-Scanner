@@ -29,10 +29,12 @@
     "deploy:functions": "firebase deploy --only functions"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
+    "crypto-js": "^4.2.0",
+    "emailjs-com": "^3.2.0",
     "expo": "^55.0.23",
     "expo-constants": "~55.0.0",
     "expo-file-system": "~55.0.17",
@@ -66,6 +68,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
+    "@types/crypto-js": "^4.2.2",
     "@types/react": "~19.2.10",
     "concurrently": "^9.2.1",
     "eslint": "^9.25.0",
