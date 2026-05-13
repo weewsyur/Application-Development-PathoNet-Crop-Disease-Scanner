@@ -28,7 +28,7 @@ type AuthInputProps = {
   keyboardType?: "default" | "email-address";
 };
 
-function AuthInput({
+const AuthInput = React.memo(function AuthInput({
   label,
   value,
   onChangeText,
@@ -60,7 +60,7 @@ function AuthInput({
       </View>
     </View>
   );
-}
+});
 
 // ─── Reusable: PrimaryButton ──────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ type PrimaryButtonProps = {
   onPress: () => void;
 };
 
-function PrimaryButton({ title, onPress }: PrimaryButtonProps) {
+const PrimaryButton = React.memo(function PrimaryButton({ title, onPress }: PrimaryButtonProps) {
   return (
     <TouchableOpacity
       style={styles.primaryButton}
@@ -79,7 +79,7 @@ function PrimaryButton({ title, onPress }: PrimaryButtonProps) {
       <Text style={styles.primaryButtonText}>{title}</Text>
     </TouchableOpacity>
   );
-}
+});
 
 // ─── Reusable: AuthModeToggle ─────────────────────────────────────────────────
 
@@ -88,7 +88,7 @@ type AuthModeToggleProps = {
   onModeChange: (mode: "signin" | "signup") => void;
 };
 
-function AuthModeToggle({ mode, onModeChange }: AuthModeToggleProps) {
+const AuthModeToggle = React.memo(function AuthModeToggle({ mode, onModeChange }: AuthModeToggleProps) {
   const signinButtonStyle = StyleSheet.flatten([
     styles.toggleButton,
     mode === "signin" && styles.toggleButtonActive,
@@ -122,7 +122,7 @@ function AuthModeToggle({ mode, onModeChange }: AuthModeToggleProps) {
       </TouchableOpacity>
     </View>
   );
-}
+});
 
 export default function SignIn() {
   const router = useRouter();
@@ -157,11 +157,13 @@ export default function SignIn() {
 
       const user = userCredential.user;
 
-      // Store UID in AsyncStorage
-      await AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid);
+      // Store UID in AsyncStorage - optimized to not block navigation
+      AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid).catch((error) => {
+        console.error("[SignIn] Error storing UID:", error);
+      });
       console.log("[SignIn] User signed in successfully:", user.uid);
 
-      // Navigate to home (no verification needed)
+      // Navigate immediately to home (no verification needed)
       router.replace("/(tabs)/Home");
     } catch (e: any) {
       console.error("[SignIn] Error:", e);

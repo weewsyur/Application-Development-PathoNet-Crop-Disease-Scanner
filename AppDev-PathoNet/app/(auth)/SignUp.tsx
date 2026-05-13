@@ -288,7 +288,7 @@ type AuthInputProps = {
   keyboardType?: "default" | "email-address";
 };
 
-function AuthInput({
+const AuthInput = React.memo(function AuthInput({
   label,
   value,
   onChangeText,
@@ -320,7 +320,7 @@ function AuthInput({
       </View>
     </View>
   );
-}
+});
 
 // ─── Reusable: PrimaryButton ──────────────────────────────────────────────────
 
@@ -330,7 +330,7 @@ type PrimaryButtonProps = {
   disabled?: boolean;
 };
 
-function PrimaryButton({ title, onPress, disabled = false }: PrimaryButtonProps) {
+const PrimaryButton = React.memo(function PrimaryButton({ title, onPress, disabled = false }: PrimaryButtonProps) {
   return (
     <TouchableOpacity
       style={[
@@ -347,7 +347,7 @@ function PrimaryButton({ title, onPress, disabled = false }: PrimaryButtonProps)
       ]}>{title}</Text>
     </TouchableOpacity>
   );
-}
+});
 
 // ─── Reusable: AuthModeToggle ─────────────────────────────────────────────────
 
@@ -356,7 +356,7 @@ type AuthModeToggleProps = {
   onModeChange: (mode: "signin" | "signup") => void;
 };
 
-function AuthModeToggle({ mode, onModeChange }: AuthModeToggleProps) {
+const AuthModeToggle = React.memo(function AuthModeToggle({ mode, onModeChange }: AuthModeToggleProps) {
   return (
     <View style={styles.toggleContainer}>
       <TouchableOpacity
@@ -393,7 +393,7 @@ function AuthModeToggle({ mode, onModeChange }: AuthModeToggleProps) {
       </TouchableOpacity>
     </View>
   );
-}
+});
 
 // ─── Screen: SignUp ───────────────────────────────────────────────────────────
 
@@ -447,11 +447,13 @@ export default function SignUp() {
 
       const user = userCredential.user;
 
-      // Store UID locally
-      await AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid);
+      // Store UID locally - optimized to not block navigation
+      AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid).catch((error) => {
+        console.error("[SignIn] Error storing UID:", error);
+      });
       console.log("[SignIn] User signed in:", user.uid);
 
-      // Navigate to home
+      // Navigate immediately to home
       router.replace("/(tabs)/Home");
     } catch (e: any) {
       if (e.message === "Request timeout") {
@@ -676,18 +678,16 @@ export default function SignUp() {
       ]);
       console.log("[SignUp] Temporary data stored for OTP screen");
 
-      // 8. Store UID locally with timeout
-      await Promise.race([
-        AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 3000))
-      ]);
+      // 8. Store UID locally - optimized to not block navigation
+      AsyncStorage.setItem(STORAGE_KEYS.PATHONET_UID, user.uid).catch((error) => {
+        console.error("[SignUp] Error storing UID:", error);
+      });
       console.log("[SignUp] UID stored locally");
 
-      // 9. Set cooldown for OTP requests with timeout
-      await Promise.race([
-        setOTPRequestCooldown(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 3000))
-      ]);
+      // 9. Set cooldown for OTP requests - optimized to not block navigation
+      setOTPRequestCooldown().catch((error) => {
+        console.error("[SignUp] Error setting OTP cooldown:", error);
+      });
       console.log("[SignUp] OTP cooldown set");
 
       // 10. Mark signup as completed

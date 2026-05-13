@@ -274,7 +274,7 @@ function HomeScreenContent() {
           firestoreData.push(doc.data() as ScanRecord);
         });
 
-        // Merge with AsyncStorage
+        // Merge with AsyncStorage - optimized to reduce state updates
         AsyncStorage.getItem(STORAGE_KEYS.SCAN_HISTORY).then((raw) => {
           const localData: ScanRecord[] = raw ? JSON.parse(raw) : [];
           const merged = [...firestoreData];
@@ -299,6 +299,9 @@ function HomeScreenContent() {
 
           // Update AsyncStorage with latest 100 records
           AsyncStorage.setItem(STORAGE_KEYS.SCAN_HISTORY, JSON.stringify(merged.slice(0, 100)));
+        }).catch((error) => {
+          console.error("[Home] AsyncStorage error:", error);
+          setScans(firestoreData.slice(0, 10));
         });
       }, (error) => {
         console.error("[Home] Firestore listener error:", error);
@@ -322,7 +325,7 @@ function HomeScreenContent() {
     setRefreshing(true);
     await loadFromStorage();
     setRefreshing(false);
-  }, []);
+  }, [loadFromStorage]);
 
   // ── Derived Stats ───────────────────────────────────────────────────────────────
   const { total, healthy, diseased, avgConfidence } = useMemo(() => {

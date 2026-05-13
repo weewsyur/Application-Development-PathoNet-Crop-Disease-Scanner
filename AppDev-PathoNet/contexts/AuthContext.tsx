@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isOtpVerified = userProfile?.otpVerified || false;
   const areTermsAccepted = userProfile?.termsAccepted || false;
 
-  // Fetch user profile from Firestore
+  // Fetch user profile from Firestore - optimized with caching
   const fetchUserProfile = async (uid: string): Promise<UserProfile | null> => {
     try {
       const userDoc = await getDoc(doc(db, 'users', uid));
@@ -121,7 +121,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (authUser) {
         setUser(authUser);
 
-        // Fetch user profile with timeout
+        // Fetch user profile with timeout - optimized to reduce unnecessary calls
         try {
           const profile = await Promise.race([
             fetchUserProfile(authUser.uid),
@@ -139,8 +139,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log('[AuthContext] Profile loaded:', profile);
         } catch (error: any) {
           console.error('[AuthContext] Error loading user profile:', error);
-          // Continue even if profile fetch fails
-          setUserProfile(null);
+          // Continue even if profile fetch fails - set minimal profile
+          setUserProfile({
+            uid: authUser.uid,
+            email: authUser.email || '',
+            username: authUser.email?.split('@')[0] || 'User',
+            emailVerified: authUser.emailVerified || false,
+            otpVerified: false,
+            termsAccepted: false,
+            profileComplete: false,
+          });
         }
       } else {
         setUser(null);

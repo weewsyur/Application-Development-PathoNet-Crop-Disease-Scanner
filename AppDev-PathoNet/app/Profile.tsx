@@ -9,16 +9,15 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ChevronLeft, User, Info, LogOut } from "lucide-react";
-import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { signOutUser } from "@/lib/authService";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS, SIZES } from "@/constants/theme";
-import { STORAGE_KEYS } from "@/lib/storage";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user, userProfile, isLoading: authLoading } = useAuth();
   const [userName, setUserName] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -26,10 +25,10 @@ export default function ProfileScreen() {
   // ── Fetch username from Firebase Auth or Firestore ─────────────────────────────
   const fetchUserName = useCallback(async (uid: string) => {
     try {
-      const user = auth.currentUser;
-      if (user?.displayName) {
-        setUserName(user.displayName);
-        setUserEmail(user.email || "");
+      const currentUser = auth.currentUser;
+      if (currentUser?.displayName) {
+        setUserName(currentUser.displayName);
+        setUserEmail(currentUser.email || "");
         return;
       }
 
@@ -39,11 +38,11 @@ export default function ProfileScreen() {
         const userData = userDoc.data();
         const username = userData?.username || userData?.email?.split("@")[0] || "User";
         setUserName(username);
-        setUserEmail(userData?.email || user?.email || "");
+        setUserEmail(userData?.email || currentUser?.email || "");
       } else {
         // Fallback to email prefix
-        setUserName(user?.email?.split("@")[0] || "User");
-        setUserEmail(user?.email || "");
+        setUserName(currentUser?.email?.split("@")[0] || "User");
+        setUserEmail(currentUser?.email || "");
       }
     } catch (error) {
       console.error("[Profile] Error fetching username:", error);
@@ -53,24 +52,24 @@ export default function ProfileScreen() {
     }
   }, []);
 
-  // ── Auth state listener ────────────────────────────────────────────────────────
+  // ── Use AuthContext instead of separate auth listener ───────────────────────────
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log("[Profile] Auth state changed:", user ? `User: ${user.email}` : 'No user');
-
-      if (user) {
-        fetchUserName(user.uid);
+    if (user) {
+      // Use userProfile from AuthContext if available, otherwise fetch
+      if (userProfile?.username) {
+        setUserName(userProfile.username);
+        setUserEmail(userProfile.email || user.email || "");
       } else {
-        // Clear local state when user signs out
-        setUserName("");
-        setUserEmail("");
-        // Redirect to welcome if not authenticated
-        router.replace("/(auth)/Welcome");
+        fetchUserName(user.uid);
       }
-    });
-
-    return unsubscribe;
-  }, [fetchUserName, router]);
+    } else if (!authLoading) {
+      // Clear local state when user signs out
+      setUserName("");
+      setUserEmail("");
+      // Redirect to welcome if not authenticated
+      router.replace("/(auth)/Welcome");
+    }
+  }, [user, userProfile, authLoading, fetchUserName, router]);
 
   const handleLogout = async () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
