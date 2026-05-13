@@ -13,6 +13,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { COLORS, SIZES } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
+import { handleLogout } from "@/lib/logoutHandler";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -79,8 +80,8 @@ export default function ProfileScreen() {
     }
   };
 
-  // ── Sign out — clear local state and let AuthContext handle navigation ─────────
-  const handleLogout = async () => {
+  // ── Sign out — use centralized logout handler and handle navigation ────────────
+  const handleLogoutPress = async () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -95,10 +96,17 @@ export default function ProfileScreen() {
             setUserName("");
             setUserEmail("");
 
-            // Sign out using AuthContext (handles Firebase auth, state updates, and navigation to Welcome)
-            await signOut();
+            // Use centralized logout handler
+            const result = await handleLogout();
 
-            console.log("[Profile] Sign out successful");
+            if (result.success) {
+              console.log("[Profile] Sign out successful");
+              // Navigate to Welcome screen and clear navigation stack
+              router.replace("/(auth)/Welcome" as any);
+            } else {
+              console.error("[Profile] Logout handler failed:", result.message);
+              Alert.alert("Error", result.message || "Failed to sign out");
+            }
           } catch (error) {
             console.error("[Profile] Sign out error:", error);
             Alert.alert("Error", "Failed to sign out. Please try again.");
@@ -181,7 +189,7 @@ export default function ProfileScreen() {
         {/* Sign Out Button */}
         <TouchableOpacity
           style={styles.signOutBtn}
-          onPress={handleLogout}
+          onPress={handleLogoutPress}
           disabled={loading}
           activeOpacity={0.7}
         >

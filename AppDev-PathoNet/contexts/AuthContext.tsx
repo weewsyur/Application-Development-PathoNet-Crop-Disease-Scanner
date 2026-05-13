@@ -10,6 +10,7 @@ import { auth, db } from '@/lib/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '@/lib/storage';
 import { useRouter } from 'expo-router';
+import { handleLogout } from '@/lib/logoutHandler';
 
 export interface UserProfile {
   uid: string;
@@ -98,16 +99,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Sign out
   const signOut = async () => {
     try {
-      await auth.signOut();
-      await AsyncStorage.multiRemove([
-        STORAGE_KEYS.PATHONET_UID,
-        'temp_signup_email',
-        'temp_signup_username',
-        'temp_signup_uid',
-      ]);
-      setUser(null);
-      setUserProfile(null);
-      router.replace('/(auth)/Welcome' as any);
+      // Use the centralized logout handler
+      const result = await handleLogout();
+
+      if (result.success) {
+        setUser(null);
+        setUserProfile(null);
+        router.replace('/(auth)/Welcome' as any);
+      } else {
+        console.error('[AuthContext] Logout handler failed:', result.message);
+      }
     } catch (error) {
       console.error('[AuthContext] Error signing out:', error);
     }
