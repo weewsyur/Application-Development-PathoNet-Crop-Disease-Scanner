@@ -107,7 +107,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       ]);
       setUser(null);
       setUserProfile(null);
-      router.replace('/(auth)/SignUp' as any);
+      router.replace('/(auth)/Welcome' as any);
     } catch (error) {
       console.error('[AuthContext] Error signing out:', error);
     }

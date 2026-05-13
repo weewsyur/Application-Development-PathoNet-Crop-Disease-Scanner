@@ -65,10 +65,8 @@ export default function ProfileScreen() {
       // Clear local state when user signs out
       setUserName("");
       setUserEmail("");
-      // Redirect to welcome if not authenticated
-      router.replace("/(auth)/Welcome");
     }
-  }, [user, userProfile, authLoading, fetchUserName, router]);
+  }, [user, userProfile, authLoading, fetchUserName]);
 
   const handleLogout = async () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
