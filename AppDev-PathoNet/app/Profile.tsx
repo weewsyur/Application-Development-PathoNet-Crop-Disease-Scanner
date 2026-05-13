@@ -11,13 +11,12 @@ import { useRouter } from "expo-router";
 import { ChevronLeft, User, Info, LogOut } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { signOutUser } from "@/lib/authService";
 import { COLORS, SIZES } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, userProfile, isLoading: authLoading } = useAuth();
+  const { user, userProfile, isLoading: authLoading, signOut } = useAuth();
   const [userName, setUserName] = useState<string>("");
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -82,24 +81,14 @@ export default function ProfileScreen() {
             console.log("[Profile] Starting sign out process...");
             setLoading(true);
 
-            // Sign out from Firebase (this clears storage internally)
-            const result = await signOutUser();
+            // Sign out using AuthContext (this handles Firebase auth and state updates)
+            await signOut();
 
-            console.log("[Profile] Sign out result:", result);
+            console.log("[Profile] Sign out successful");
 
-            if (result.success) {
-              console.log("[Profile] Sign out successful, navigating to welcome");
-
-              // Clear local state immediately
-              setUserName("");
-              setUserEmail("");
-
-              // Navigate to welcome screen
-              router.replace("/(auth)/Welcome");
-            } else {
-              console.error("[Profile] Sign out failed:", result.message);
-              Alert.alert("Error", result.message || "Failed to sign out");
-            }
+            // Clear local state immediately
+            setUserName("");
+            setUserEmail("");
           } catch (error) {
             console.error("[Profile] Sign out error:", error);
             Alert.alert("Error", "Failed to sign out. Please try again.");
